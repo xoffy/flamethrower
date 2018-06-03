@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.tcc": "cpp",
+        "vector": "cpp",
+        "deque": "cpp",
+        "valarray": "cpp"
+    }
+}
