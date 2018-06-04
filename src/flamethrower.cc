@@ -1,116 +1,136 @@
 
 #include <iostream>
 #include <exception>
-#include <random>
 #include <cmath>
 
 #include "flamethrower.h"
-#include "picture.h"
+#include "util.h"
+
+Flamethrower::Flamethrower() {
+    mt19937.seed(random());
+}
 
 void Flamethrower::run(int argc, char *argv[]) {
-    if (argc <= 2) {
-        throw std::runtime_error("usage: prog <in> <out>");
+    using namespace std::placeholders;
+
+    std::string inputPath, outputPath;
+
+    if (argc == 3) {
+        inputPath = argv[1];
+        outputPath = argv[2];
+    } else {
+        inputPath = "test.jpg";
+        outputPath = "test-out.jpg";
     }
 
-    std::string inputPath = argv[1];
-    std::string outputPath = argv[2];
+    YCbCrPicture canvas(inputPath);
+    double aspect = (double)canvas.get_width() / canvas.get_height();
+    int reso = 288;
+    YCbCrPicture overlay(aspect * reso, reso / 2);
 
-    Picture pic(inputPath);
+    overlay.scan([&](int x, int y, YCbCrPixel &e) {
+        static int point = -1;
+        static bool isBlue = false;
+        int bx = (double)canvas.get_width() / overlay.get_width() * x;
+        int by = (double)canvas.get_height() / overlay.get_height() * y;
+        if (bx == 0) { bx = 1; }
+        double diff = (canvas.get_pixel(bx, by).Y
+            - canvas.get_pixel(bx - 1, by).Y) / 256.0;
+        double rndm = 0.001;
+        double thrshld = 0.024;
 
-    // float aspect = (float)pic.get_width() / pic.get_height();
-    // pic.resize(576 * aspect, 576);
-    int fireResolution = pic.get_height() / 120;
-    std::cout << "fireResolution: " << fireResolution << std::endl;
+        if (x == 0) {
+            point = -1;
+        }
 
-    std::random_device rd;
-    std::mt19937_64 mt(rd());
-    std::uniform_real_distribution<double> unif;
+        int gain = x - point;
 
-    pic.scan([&](int x, int y, Pixel &px) {
-#if 1
-        // px.setCr(px.Pr + ((rand() % 3) - 1) * 8);
-        // px.setCb(px.Pb + ((rand() % 3) - 1) * 8);
+        if (diff * uniform(mt19937) + rndm * uniform(mt19937) > thrshld
+            && gain > uniform(mt19937) * 20)
+        {
+            point = x;
+            isBlue = uniform(mt19937) <= 0.5;
+        }
 
-        if (y % fireResolution != 0) {
+        if (point < 0) {
             return;
         }
 
-        if (y + 8 > pic.get_height()) {
+        
+        double err = 384.0 / (gain + 1.0) - 1.0;
+        if (err < 0) {
+            point = -1;
             return;
         }
 
-        static int fire = 0;
-        static int lastY = px.getY();
-        unsigned char initY = px.getY();
-        static int fireX = -1;
-
-        double probability = 0.00;
-
-        if (px.getY() - lastY > 64) {
-            probability += 0.4;
+        if (isBlue) {
+            e.Cb = Util::clampComponent(e.Cb + err);
+        } else {
+            e.Cr = Util::clampComponent(e.Cr + err);
         }
+    });
+    overlay.resize(canvas.get_width(), canvas.get_height());
+    canvas.merge(overlay, 128);
+    canvas.save(outputPath);
+}
 
-        if (unif(mt) < probability) {
-            fireX = x;
-        }
+void Flamethrower::burn_slow(int x, int y, YCbCrPixel &px) {
+#if 0
+    // px.addCr(((rand() % 3) - 1) * 8);
+    // px.addCb(((rand() % 3) - 1) * 8);
 
-        // px.setCr(px.Pr + ((rand() % 3) - 1) * 8);
-        // px.setCb(px.Pb + ((rand() % 3) - 1) * 8);
+    if (y % step != 0) {
+        return;
+    }
 
-        for (int cy = 0; cy <= fireResolution; cy++) {
-            if (fireX == -1 || (x - fireX) < 0) {
-                break;
-            }
+    static int lastY = px.Y;
+    unsigned char initY = px.Y;
+    static int fireX = -1;
 
-            Pixel &cpx = pic.get_pixel(x, y + cy);
-            // cpx.addCr((512 / ((x - fireX) + 1) + 2) * ((double)cy / fireResolution));
-            double difference = x - fireX;
-            /*
-            double fire = 0.0
-                - (difference / 1.0 - 16.0)
-                * (difference / 1.0 - 16.0)
-                + 256.0;
-            */
-            double fire = 512.0 / (difference + 1.0) + 2.0;
+    double probability = 0.00;
 
-            if (fire < 0.0) {
-                continue;
-            }
+    if (px.Y - lastY > 64) {
+        probability += 0.4;
+    }
 
-            double multiplier = 0.0
-                - ((double)cy / (fireResolution / 2.0) - 1.0)
-                * ((double)cy / (fireResolution / 2.0) - 1.0)
-                + 1.0;
+    if (uniform(mt19937) < probability) {
+        fireX = x;
+    }
 
-            cpx.addCr(fire * multiplier);
-        }
+    if (fireX == -1 || (x - fireX) < 0) {
+        return;
+    }
 
 #if 0
-        if (y <= 2) {
-            // 1, 2
-            px.Pb = 128;
-        } else if ((y - 2) % 4 == 0) {
-            // 6, 10, 14, 18, 22...
-            px.Pb = pic.get_pixel(x, y - 2).Pb;
-        } else if ((y - 3) % 4 == 0) {
-            // 3, 7, 11, 15, 19, 23...
-            px.Pr = pic.get_pixel(x, y - 2).Pr;
-        } else if (y % 2 == 0) {
-            // 4, 8, 12, 16, 20...
-            px.Pr = pic.get_pixel(x, y - 2).Pr;
-        } else {
-            // 5, 9, 13, 17, 21...
-            px.Pb = pic.get_pixel(x, y - 2).Pb;
-        }
+    double multiplier = 0.0
+        - ((double)cy / (step / 2.0) - 1.0)
+        * ((double)cy / (step / 2.0) - 1.0)
+        + 1.0;
 #endif
 
-        lastY = initY;
-#else
-        px.setCr(255);
-        px.setCb(64);
-        px.addY(-64);
-#endif
-    });
+    double difference = x - fireX;
+    double fire = 512.0 / (difference + 1.0) + 2.0;
 
-    pic.save(outputPath);
+    if (fire < 0.0) {
+        return;
+    }
+
+    px.Cr = Util::clampComponent(px.Cr + fire);
+
+    lastY = initY;
+#endif
 }
+
+/*
+if (y <= 2) {
+    // 1, 2
+} else if ((y - 2) % 4 == 0) {
+    // 6, 10, 14, 18, 22...
+} else if ((y - 3) % 4 == 0) {
+    // 3, 7, 11, 15, 19, 23...
+} else if (y % 2 == 0) {
+    // 4, 8, 12, 16, 20...
+} else {
+    // 5, 9, 13, 17, 21...
+}
+*/
