@@ -43,10 +43,10 @@ void Flamethrower::run(int argc, char *argv[]) {
             point = -1;
         }
 
-        int gain = x - point;
+        int gain = point == -1 ? 80 : x - point;
 
         if (diff * uniform(mt19937) + rndm * uniform(mt19937) > thrshld
-            && gain > uniform(mt19937) * 20)
+            && gain > 40 + uniform(mt19937) * 20)
         {
             point = x;
             isBlue = uniform(mt19937) <= 0.5;
@@ -55,7 +55,6 @@ void Flamethrower::run(int argc, char *argv[]) {
         if (point < 0) {
             return;
         }
-
         
         double err = 384.0 / (gain + 1.0) - 1.0;
         if (err < 0) {
