@@ -16,10 +16,11 @@
 RGBPicture::RGBPicture(int width, int height)
     : AbstractPicture(width, height), data(NULL)
 {
-    no_stbi = true;
-
     if (width > 0 && height > 0) {
-        data = new Byte[width * height * 3]();
+        // data = new Byte[width * height * 3]();
+        unsigned int size = width * height * 3 * sizeof(Byte);
+        data = static_cast<Byte *>(std::malloc(size));
+        std::memset(data, 0, size);
     }
 }
 
@@ -30,17 +31,20 @@ RGBPicture::RGBPicture(const std::string &path) {
 RGBPicture::RGBPicture(const RGBPicture &rgb)
     : AbstractPicture(rgb.get_width(), rgb.get_height())
 {
-    data = new Byte[width * height * 3];
-    std::memcpy(data, rgb.get_pixel(0, 0), width * height * 3);
+    // data = new Byte[width * height * 3];
+    unsigned int size = width * height * 3 * sizeof(Byte);
+    data = static_cast<Byte *>(std::malloc(size));
+    std::memcpy(data, rgb.get_pixel(0, 0), size);
 }
 
 RGBPicture::RGBPicture(const YCbCrPicture &ycbcr) {
     width = ycbcr.get_width();
     height = ycbcr.get_height();
-    unsigned int size = width * height;
 
-    no_stbi = true;
-    data = new Byte[size * 3];
+    unsigned int size = width * height;
+    // data = new Byte[width * height * 3];
+    data = static_cast<Byte *>(std::malloc(sizeof(Byte) * size * 3));
+
     unsigned int j = 0;
 
     for (unsigned int i = 0; i < size; i++) {
@@ -61,15 +65,12 @@ RGBPicture::RGBPicture(const YCbCrPicture &ycbcr) {
 }
 
 RGBPicture::~RGBPicture() {
-    if (no_stbi && data) {
-        // delete[] data;
-    } else if (data != NULL) {
+    if (data != NULL) {
         stbi_image_free(data);
     }
 }
 
 void RGBPicture::loadFromFile(const std::string &path) {
-    no_stbi = false;
     data = stbi_load(path.c_str(), &width, &height, NULL, 3);
     if (!data) {
         throw std::runtime_error("Unable to load picture.");
@@ -77,14 +78,17 @@ void RGBPicture::loadFromFile(const std::string &path) {
 }
 
 void RGBPicture::resize(int desired_width, int desired_height) {
-    Byte *desired_data = new Byte[desired_width * desired_height * 3];
+    // Byte *desired_data = new Byte[desired_width * desired_height * 3];
+    unsigned int size =
+        desired_width * desired_height * 3 * sizeof(Byte);
+    auto desired_data = static_cast<Byte *>(std::malloc(size));
     int rc = stbir_resize_uint8(data, width, height, 0,
         desired_data, desired_width, desired_height, 0, 3);
     if (rc == 0) {
         throw std::runtime_error("Can't resize image!");
     }
 
-    stbi_image_free(data);
+    std::free(data);
     data = desired_data;
     width = desired_width;
     height = desired_height;
@@ -106,25 +110,6 @@ void RGBPicture::save(const std::string &path) {
 
     if (rc == 0) {
         throw std::runtime_error("Unable to save file.");
-    }
-}
-
-void RGBPicture::scan(const std::function<void (int,
-    int, Byte *)> &function)
-{
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            function(x, y, get_pixel(x, y));
-        }
-    }
-}
-
-void RGBPicture::merge(const RGBPicture &other) {
-    unsigned int idx = 0;
-    unsigned int size = width * height * 3;
-    while (idx < size) {
-        data[idx] = Util::clampComponent(data[idx] + other[idx]);
-        idx++;
     }
 }
 
@@ -177,15 +162,15 @@ void YCbCrPicture::scan(const std::function<void (int,
     }
 }
 
-void YCbCrPicture::merge(const YCbCrPicture &other, int armor) {
+void YCbCrPicture::merge(const YCbCrPicture &other) {
     if (other.width != width || other.height != height) {
         throw std::runtime_error("Attempt to merge incompatible images.");
     }
 
     scan([&](int x, int y, YCbCrPixel &e) {
-        e.Y = Util::clampComponent(e.Y + other.get_pixel(x, y).Y - armor);
-        e.Cb = Util::clampComponent(e.Cb + other.get_pixel(x, y).Cb - armor);
-        e.Cr = Util::clampComponent(e.Cr + other.get_pixel(x, y).Cr - armor);
+        e.Y = Util::clampComponent(e.Y + other.get_pixel(x, y).Y - 128);
+        e.Cb = Util::clampComponent(e.Cb + other.get_pixel(x, y).Cb - 128);
+        e.Cr = Util::clampComponent(e.Cr + other.get_pixel(x, y).Cr - 128);
     });
 }
 

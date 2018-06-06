@@ -62,8 +62,6 @@ public:
     void loadFromFile(const std::string &path);
     void save(const std::string &path);
     void resize(int desired_width, int desired_height);
-    void scan(const std::function<void (int, int, Byte *)> &f);
-    void merge(const RGBPicture &other);
 
     Byte operator[](unsigned int idx) const {
         return data[idx];
@@ -75,7 +73,6 @@ public:
 
 private:
     Byte *data;
-    bool no_stbi = false;
 };
 
 struct YCbCrPixel {
@@ -91,7 +88,7 @@ public:
     YCbCrPicture(const RGBPicture &rgb);
     explicit YCbCrPicture(const std::string &path);
     void scan(const std::function<void (int, int, YCbCrPixel &)> &f);
-    void merge(const YCbCrPicture &other, int armor = 0);
+    void merge(const YCbCrPicture &other);
 
     // "bridged" methods:
     //

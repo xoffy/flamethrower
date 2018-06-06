@@ -13,10 +13,6 @@ public:
 private:
     void burn_slow(int x, int y, YCbCrPixel &px);
 
-    std::random_device random;
-    std::mt19937_64 mt19937;
-    std::uniform_real_distribution<double> uniform;
-
     // Picture pic, overlay;
     int step;
 };
