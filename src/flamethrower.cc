@@ -7,7 +7,7 @@
 #include "util.h"
 
 Flamethrower::Flamethrower() {
-    
+    // weird commit
 }
 
 void Flamethrower::run(int argc, char *argv[]) {
