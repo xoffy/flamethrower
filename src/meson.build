@@ -2,5 +2,6 @@
 sources = files(
     'main.c',
     'flamethrower.c',
-    'picture.c'
+    'picture.c',
+    'util.c'
 )
