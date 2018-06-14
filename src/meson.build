@@ -1,6 +1,6 @@
 
 sources = files(
-    'main.cc',
-    'flamethrower.cc',
-    'picture.cc'
+    'main.c',
+    'flamethrower.c',
+    'picture.c'
 )
