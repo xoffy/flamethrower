@@ -134,13 +134,7 @@ void rgb_picture_delete(RGBPicture *rgb) {
     rgb = NULL;
 }
 
-const char *u_get_file_ext(const char *path) {
-    const char *dot = strrchr(path, '.');
-    if (dot == NULL || dot == path) {
-        return NULL;
-    }
-    return dot + 1;
-}
+
 
 #define JPEG_QUALITY    95
 #define PNG_STRIDE      0
@@ -282,7 +276,8 @@ YCbCrPicture *ycbcr_picture_from_rgb(const RGBPicture *rgb) {
 
 unsigned char *ycbcr_picture_get_pixel(const YCbCrPicture *ycbcr, int x, int y)
 { 
-    return &ycbcr->data[PIXEL(ycbcr, x, y, YCBCR_COMPONENTS)];
+    return ycbcr->data + (ycbcr->width * YCBCR_COMPONENTS * y
+        + YCBCR_COMPONENTS * x);
 }
 
 void ycbcr_picture_scan(YCbCrPicture *ycbcr,
@@ -321,30 +316,25 @@ YCbCrPicture *ycbcr_picture_copy(YCbCrPicture *orig) {
     return ycbcr;
 }
 
-YCbCrPicture *ycbcr_picture_merge(YCbCrPicture *bg, YCbCrPicture *fg) {
-    YCbCrPicture *m;
+void ycbcr_picture_merge(YCbCrPicture *ycbcr, YCbCrPicture *add) {
     int x, y, max_w, max_h, p;
     
-    u_debug("ycbcr_picture_merge(0x%X, 0x%X)", bg, fg);
+    u_debug("ycbcr_picture_merge(0x%X, 0x%X)", ycbcr, add);
     
-    m = ycbcr_picture_copy(bg);
-    if (!m) {
-        return NULL;
-    }
-    
-    max_w = bg->width < fg->width ? bg->width : fg->width;
-    max_h = bg->height < fg->height ? bg->height : fg->height;
+    max_w = ycbcr->width <= add->width ? ycbcr->width : add->width;
+    max_h = ycbcr->height <= add->height ? ycbcr->height : add->height;
     
     for (y = 0; y < max_h; y++) {
         for (x = 0; x < max_w; x++) {
-            p = PIXEL(m, x, y, YCBCR_COMPONENTS);
-            m->data[p + 0] = clamp_comp(bg->data[p + 0] + fg->data[p + 0] - 128);
-            m->data[p + 1] = clamp_comp(bg->data[p + 1] + fg->data[p + 1] - 128);
-            m->data[p + 2] = clamp_comp(bg->data[p + 2] + fg->data[p + 2] - 128);
+            p = PIXEL(ycbcr, x, y, YCBCR_COMPONENTS);
+            ycbcr->data[p + 0] = clamp_comp(ycbcr->data[p + 0]
+                + add->data[p + 0] - 128);
+            ycbcr->data[p + 1] = clamp_comp(ycbcr->data[p + 1]
+                + add->data[p + 1] - 128);
+            ycbcr->data[p + 2] = clamp_comp(ycbcr->data[p + 2]
+                + add->data[p + 2] - 128);
         }
     }
-    
-    return m;
 }
 
 void ycbcr_picture_delete(YCbCrPicture *ycbcr) {

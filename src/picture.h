@@ -36,13 +36,15 @@ void ycbcr_picture_delete(YCbCrPicture *ycbcr);
 unsigned char *ycbcr_picture_get_pixel(const YCbCrPicture *ycbcr, int x, int y);
 void ycbcr_picture_scan(YCbCrPicture *ycbcr,
     int (*func)(YCbCrPicture *, int x, int y, unsigned char *));
-YCbCrPicture *ycbcr_picture_merge(YCbCrPicture *bg, YCbCrPicture *fg);
+void ycbcr_picture_merge(YCbCrPicture *ycbcr, YCbCrPicture *add);
+YCbCrPicture *ycbcr_picture_copy(YCbCrPicture *orig);
 
 YCbCrPicture *ycbcr_picture_brdg_load(const char *path);
 void ycbcr_picture_brdg_write(YCbCrPicture *ycbcr, const char *path);
 void ycbcr_picture_brdg_resize(YCbCrPicture **ycbcr, int nw, int nh);
 
 #define YCBCR_COMPONENTS    3
+
 
 #endif
 

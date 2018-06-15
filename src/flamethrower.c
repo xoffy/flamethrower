@@ -2,6 +2,8 @@
 #include <stdlib.h> /* rand */
 #include <time.h> /* time */
 #include <string.h> /* strcmp */
+#include <math.h> /* round */
+#include <stdio.h> /* sscanf */
 
 #include "flamethrower.h"
 #include "picture.h"
@@ -10,13 +12,17 @@
 YCbCrPicture *canvas = NULL;
 const char *input = NULL;
 const char *output = NULL;
+double rndm;
+double thrshld;
+int anime = 1;
 
 int secam_init(int argc, char **argv) {
     int idx = 1;
 
-    u_debug("secam_init()...");
-
     srand(time(NULL));
+
+    rndm = 0.001;
+    thrshld = 0.024;
 
     for (idx = 1; idx < argc; idx++) {
         if (strcmp(argv[idx], "-i") == 0) {
@@ -26,6 +32,20 @@ int secam_init(int argc, char **argv) {
         } else if (strcmp(argv[idx], "-o") == 0) {
             if (idx < argc - 1) {
                 output = argv[++idx];
+            }
+        } else if (strcmp(argv[idx], "-r") == 0) {
+            if (idx < argc - 1) {
+                sscanf(argv[++idx], "%lf", &rndm);
+            }
+        } else if (strcmp(argv[idx], "-t") == 0) {
+            if (idx < argc - 1) {
+                sscanf(argv[++idx], "%lf", &thrshld);
+            }
+        } else if (strcmp(argv[idx], "-q") == 0) {
+            u_quiet = 1;
+        } else if (strcmp(argv[idx], "-a") == 0) {
+            if (idx < argc - 1) {
+                sscanf(argv[++idx], "%d", &anime);
             }
         } else {
             u_error("Unknown argument %s.", argv[idx]);
@@ -54,37 +74,37 @@ void secam_end(void) {
     }
 }
 
-double random1() {
+double random1(void) {
     return rand() / (double)RAND_MAX;
 }
 
-int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
-    double rndm, thrshld;
-    int min_hs;
-    static int point, is_blue;
-    int bx, by, gain, hs /* horizontal step */;
-    double diff, fire;
+#define MIN_HS  12  /* minimal horizontal step */
 
-    rndm = 0.001;
-    thrshld = 0.024;
-    min_hs = 40;
+int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
+    static int point, is_blue;
+    int cx, cy, gain, hs /* horizontal step */;
+    double diff, fire, ethrshld;
 
     if (x == 0) {
         point = -1;
     }
     
-    bx = canvas->width / overlay->width * x;
-    by = canvas->height / overlay->height * y;
-    if (bx == 0) {
-        bx = 1;
+    cx = round((double)canvas->width / overlay->width * x);
+    cy = round((double)canvas->height / overlay->height * y);
+    if (cx == 0) {
+        cx = 2;
     }
     
-    diff = ycbcr_picture_get_pixel(canvas, bx, by)[0]
-        - ycbcr_picture_get_pixel(canvas, bx - 1, by)[0] / 256.0;
-    gain = point == -1 ? min_hs * 1.5 : x - point;
-    hs = min_hs + random1() * (min_hs * 0.5);
+    diff = ((0.0
+        + ycbcr_picture_get_pixel(canvas, cx, cy)[0]
+        - ycbcr_picture_get_pixel(canvas, cx - 2, cy)[0])
+        / 256.0);
+    gain = point == -1 ? MIN_HS * 1.5 : x - point;
+    hs = MIN_HS + random1() * (MIN_HS * 10.5);
     
-    if ((diff * random1() + rndm * random1() > thrshld) && (gain > hs)) {
+    ethrshld = thrshld + (random1() * thrshld - thrshld * 0.5);
+    
+    if ((diff * random1() + rndm * random1() > ethrshld) && (gain > hs)) {
         point = x;
         is_blue = random1() <= 0.25;
     }
@@ -112,9 +132,12 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
 }
 
 void secam_perform_simple(void) {
-    YCbCrPicture *overlay, *merged;
+    YCbCrPicture *overlay, *ov_odd, *ov_even, *frame;
     double ar; /* aspect ratio */
-    int vr = 288; /* vertical resolution */
+    int vr = 240; /* vertical resolution */
+    char base[256], out[256];
+    const char *ext;
+    int i, ov_w, ov_h;
 
     u_debug("secam_perform_simple()...");
 
@@ -123,17 +146,42 @@ void secam_perform_simple(void) {
         return;
     }
     
+    u_get_file_base(base, output);
+    ext = u_get_file_ext(output);
+    
     ar = (double)canvas->width / (double)canvas->height;
-
-    overlay = ycbcr_picture_dummy(ar * vr, vr / 2);
-    ycbcr_picture_scan(overlay, secam_scan);
-    ycbcr_picture_brdg_resize(&overlay, canvas->width, canvas->height);
-    merged = ycbcr_picture_merge(canvas, overlay);
-    ycbcr_picture_brdg_write(overlay, output);
+    ov_w = ar * vr;
+    ov_h = vr / 2;
     
+    ov_even = ycbcr_picture_dummy(canvas->width, canvas->height);
     
-    ycbcr_picture_delete(overlay);
-    ycbcr_picture_delete(merged);
+    for (i = 0; i < anime; i++) {
+        frame = ycbcr_picture_copy(canvas);
+    
+        if (i % 2 == 0) {
+            ov_odd = ycbcr_picture_dummy(ov_w, ov_h);
+            ycbcr_picture_scan(ov_odd, secam_scan);
+            ycbcr_picture_brdg_resize(&ov_odd, canvas->width, canvas->height);
+        } else {
+            ov_even = ycbcr_picture_dummy(ov_w, ov_h);
+            ycbcr_picture_scan(ov_even, secam_scan);
+            ycbcr_picture_brdg_resize(&ov_even, canvas->width, canvas->height);
+        }
+        
+        ycbcr_picture_merge(frame, ov_odd);
+        ycbcr_picture_merge(frame, ov_even);
+        
+        sprintf(out, "%s.%d.%s", base, i, ext);
+        ycbcr_picture_brdg_write(frame, out);
+        
+        ycbcr_picture_delete(frame);
+        
+        if (i % 2 == 0) {
+            ycbcr_picture_delete(ov_even);
+        } else {
+            ycbcr_picture_delete(ov_odd);
+        }
+    }
 }
 
 int secam_run(void) {

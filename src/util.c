@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "util.h"
+
+int u_quiet = 0;
 
 #define COL_RED     "\x1b[31m"
 #define COL_GREEN   "\x1b[32m"
@@ -16,6 +19,10 @@
 void u_debug(const char *fmt, ...) {
     va_list args;
     
+    if (u_quiet) {
+        return;
+    }
+    
     printf("[" COL_BLUE "DBG" COL_RESET "] ");
     
     va_start(args, fmt);
@@ -27,6 +34,10 @@ void u_debug(const char *fmt, ...) {
 
 void u_message(const char *fmt, ...) {
     va_list args;
+    
+    if (u_quiet) {
+        return;
+    }
     
     printf("[" COL_GREEN "MSG" COL_RESET "] ");
     
@@ -47,5 +58,21 @@ void u_error(const char *fmt, ...) {
     va_end(args);
     
     printf("\n");
+}
+
+void u_get_file_base(char *base, const char *path) {
+    char *dot;
+    
+    strcpy(base, path);
+    dot = strrchr(base, '.');
+    *dot = '\0';
+}
+
+const char *u_get_file_ext(const char *path) {
+    const char *dot = strrchr(path, '.');
+    if (dot == NULL || dot == path) {
+        return NULL;
+    }
+    return dot + 1;
 }
 
