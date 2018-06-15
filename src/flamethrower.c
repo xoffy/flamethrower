@@ -47,6 +47,17 @@ int secam_init(int argc, char **argv) {
             if (idx < argc - 1) {
                 sscanf(argv[++idx], "%d", &anime);
             }
+        } else if (strcmp(argv[idx], "-h") == 0) {
+            printf(
+                "usage: %s -i [input] -o [output] [OPTIONS]\n"
+                "\n"
+                "-r [float] -- set random factor (def. %f)\n"
+                "-t [float] -- set threshold (def. %f)\n"
+                "-a [int] -- number of frames\n"
+                "-q -- be quiet\n",
+                argv[0], rndm, thrshld
+            );
+            return 0;
         } else {
             u_error("Unknown argument %s.", argv[idx]);
             return 0;
