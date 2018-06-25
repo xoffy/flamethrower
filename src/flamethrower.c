@@ -8,7 +8,9 @@
 #include "flamethrower.h"
 #include "picture.h"
 #include "util.h"
+#include "noise.h"
 
+YCbCrPicture *template = NULL;
 YCbCrPicture *canvas = NULL;
 const char *input = NULL;
 const char *output = NULL;
@@ -69,8 +71,8 @@ int secam_init(int argc, char **argv) {
         return 0;
     }
 
-    canvas = ycbcr_picture_brdg_load(input);
-    if (!canvas) {
+    template = ycbcr_picture_brdg_load(input);
+    if (!template) {
         u_error("Can't open picture %s.", input);
         return 0;
     }
@@ -80,8 +82,8 @@ int secam_init(int argc, char **argv) {
 
 void secam_end(void) {
     u_debug("secam_end()...");
-    if (canvas) {
-        ycbcr_picture_delete(canvas);
+    if (template) {
+        ycbcr_picture_delete(template);
     }
 }
 
@@ -92,23 +94,19 @@ double random1(void) {
 #define MIN_HS  12  /* minimal horizontal step */
 
 int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
-    static int point, is_blue;
-    int cx, cy, gain, hs /* horizontal step */;
+    static int point, ac /* affected component */;
+    int gain, hs /* horizontal step */;
     double diff, fire, ethrshld;
+    unsigned char *lower;
 
     if (x == 0) {
         point = -1;
-    }
-    
-    cx = round((double)canvas->width / overlay->width * x);
-    cy = round((double)canvas->height / overlay->height * y);
-    if (cx == 0) {
-        cx = 2;
+        return 1;
     }
     
     diff = ((0.0
-        + ycbcr_picture_get_pixel(canvas, cx, cy)[0]
-        - ycbcr_picture_get_pixel(canvas, cx - 2, cy)[0])
+        + ycbcr_picture_get_pixel(canvas, x, y)[0]
+        - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
         / 256.0);
     gain = point == -1 ? MIN_HS * 1.5 : x - point;
     hs = MIN_HS + random1() * (MIN_HS * 10.5);
@@ -117,40 +115,49 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     
     if ((diff * random1() + rndm * random1() > ethrshld) && (gain > hs)) {
         point = x;
-        is_blue = random1() <= 0.25;
+        ac = 2 - (random1() <= 0.25); /* Cb с вер. 0.25 */
     }
     
     if (point < 0) {
-        return 0;
+        return 1;
     }
     
     fire = (320.0 + random1() * 128.0) / (gain + 1.0) - 1.0;
     if (fire < 0) {
         /* fire is faded */
         point = -1;
-        return 0;
+        return 1;
     }
     
-    if (is_blue) {
-        /* Cb */
-        e[1] = clamp_comp(e[1] + fire);
-    } else {
-        /* Cr */
-        e[2] = clamp_comp(e[2] + fire);
+    e[ac] = clamp_comp(e[ac] + fire);
+#if 0
+    if (y < (overlay->width - 1)) {
+        lower = ycbcr_picture_get_pixel(overlay, x, y + 1);
+        lower[ac] = clamp_comp(lower[ac] + fire);
     }
+#endif
     
-    return 0;
+    return 1;
 }
 
 void secam_perform_simple(void) {
-    YCbCrPicture *overlay, *ov_odd, *ov_even, *frame;
+    YCbCrPicture *overlay, *frame; // *ov_odd, *ov_even;
     double ar; /* aspect ratio */
-    int vr = 240; /* vertical resolution */
+    int vr; /* vertical resolution */
+    int vw, vh; /* virtual width and height */
     char base[256], out[256];
     const char *ext;
-    int i, ov_w, ov_h;
+    int i;
+    
 
     u_debug("secam_perform_simple()...");
+
+    canvas = ycbcr_picture_copy(template);
+    vr = 448;
+    ar = (double)template->width / (double)template->height;
+    vw = ar * vr;
+    vh = vr / 2;
+    ycbcr_picture_brdg_resize(&canvas, vw, vh);
 
     if (!canvas) {
         u_error("secam_perform(): no canvas");
@@ -160,39 +167,39 @@ void secam_perform_simple(void) {
     u_get_file_base(base, output);
     ext = u_get_file_ext(output);
     
-    ar = (double)canvas->width / (double)canvas->height;
-    ov_w = ar * vr;
-    ov_h = vr / 2;
-    
-    ov_even = ycbcr_picture_dummy(canvas->width, canvas->height);
-    
     for (i = 0; i < anime; i++) {
-        frame = ycbcr_picture_copy(canvas);
-    
-        if (i % 2 == 0) {
-            ov_odd = ycbcr_picture_dummy(ov_w, ov_h);
-            ycbcr_picture_scan(ov_odd, secam_scan);
-            ycbcr_picture_brdg_resize(&ov_odd, canvas->width, canvas->height);
-        } else {
-            ov_even = ycbcr_picture_dummy(ov_w, ov_h);
-            ycbcr_picture_scan(ov_even, secam_scan);
-            ycbcr_picture_brdg_resize(&ov_even, canvas->width, canvas->height);
-        }
-        
-        ycbcr_picture_merge(frame, ov_odd);
-        ycbcr_picture_merge(frame, ov_even);
-        
+        overlay = ycbcr_picture_dummy(vw, vh);
+        frame = ycbcr_picture_copy(template);
+        ycbcr_picture_scan(overlay, secam_scan);
+        ycbcr_picture_brdg_resize(&overlay, template->width, template->height);
+        ycbcr_picture_merge(frame, overlay);
         sprintf(out, "%s.%d.%s", base, i, ext);
         ycbcr_picture_brdg_write(frame, out);
-        
         ycbcr_picture_delete(frame);
-        
-        if (i % 2 == 0) {
-            ycbcr_picture_delete(ov_even);
-        } else {
-            ycbcr_picture_delete(ov_odd);
-        }
+        ycbcr_picture_delete(overlay);
     }
+}
+
+int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
+    if ((x == 0) && (y % 2 == 0)) {
+        noise_init();
+    }
+    
+    c[0] = clamp_comp(noise(x));
+}
+
+void noise_test() {
+    YCbCrPicture *ycbcr;
+    
+    u_debug("noise_test()...");
+    
+    noise_init();
+    noise_scale = 0.12;
+    noise_amplitude = 255.0;
+    
+    ycbcr = ycbcr_picture_dummy(256, 64);
+    ycbcr_picture_scan(ycbcr, noise_scan);
+    ycbcr_picture_brdg_write(ycbcr, "noise.jpg");
 }
 
 int secam_run(void) {
