@@ -203,6 +203,11 @@ YCbCrPicture *ycbcr_picture_new(void) {
 
 
 
+void ycbcr_picture_reset(YCbCrPicture *ycbcr) {
+    int n = ycbcr->width * ycbcr->height * YCBCR_COMPONENTS;
+    memset(ycbcr->data, 128, n);
+}
+
 YCbCrPicture *ycbcr_picture_dummy(int width, int height) {
     YCbCrPicture *ycbcr;
     int n;

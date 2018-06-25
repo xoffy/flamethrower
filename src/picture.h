@@ -42,6 +42,7 @@ YCbCrPicture *ycbcr_picture_copy(YCbCrPicture *orig);
 YCbCrPicture *ycbcr_picture_brdg_load(const char *path);
 void ycbcr_picture_brdg_write(YCbCrPicture *ycbcr, const char *path);
 void ycbcr_picture_brdg_resize(YCbCrPicture **ycbcr, int nw, int nh);
+void ycbcr_picture_reset(YCbCrPicture *ycbcr);
 
 #define YCBCR_COMPONENTS    3
 
