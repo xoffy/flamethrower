@@ -10,5 +10,8 @@ void u_error(const char *fmt, ...);
 void u_get_file_base(char *base, const char *path);
 const char *u_get_file_ext(const char *path);
 
+#define FRAND() (rand() / (double)RAND_MAX)
+#define LERP(a, b, t) ((a) * (1 - (t)) + (b) * (t))
+
 #endif
 
