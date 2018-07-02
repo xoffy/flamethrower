@@ -54,9 +54,23 @@ RGBAPicture *picture_new(int width, int height) {
         u_error("Can't allocate memory for RGBAPicture data!");
         return NULL;
     }
-    memset(rgba->data, 128, size);
+    memset(rgba->data, 0, size);
     
     return rgba;
+}
+
+RGBAPicture *picture_clone(const RGBAPicture *src) {
+    RGBAPicture *result;
+    unsigned int size;
+
+    result = picture_new(src->width, src->height);
+    if (!result) {
+        return NULL;
+    }
+    size = src->width * src->height * RGBA_COMPONENTS;
+    memcpy(result->data, src->data, size);
+
+    return result;
 }
 
 RGBAPicture *picture_load(const char *path) {
@@ -90,7 +104,7 @@ void picture_delete(RGBAPicture *rgba) {
 #define JPEG_QUALITY    95
 #define PNG_STRIDE      0
 
-int picture_write(const RGBAPicture *rgba, const char *path) {
+int picture_save(const RGBAPicture *rgba, const char *path) {
     const char *ext;
     int rc = 0;
     
@@ -135,6 +149,60 @@ void picture_resize(RGBAPicture *rgba, int new_width, int new_height) {
     rgba->data = output;
     rgba->width = new_width;
     rgba->height = new_height;
+}
+
+unsigned char *picture_get_pixel(RGBAPicture *rgba, int x, int y) {
+    return rgba->data
+        + y * rgba->width * RGBA_COMPONENTS
+        + x * RGBA_COMPONENTS;
+}
+
+void picture_scan(RGBAPicture *rgba,
+    int (*f)(RGBAPicture *, unsigned char *, int, int))
+{
+    int x, y, rc;
+
+    for (y = 0; y < rgba->height; y++) {
+        for (x = 0; x < rgba->width; x++) {
+            rc = f(rgba, picture_get_pixel(rgba, x, y), x, y);
+            if (!rc) {
+                return;
+            }
+        }
+    }
+}
+
+static RGBAPicture *_merge_base, *_merge_added;
+
+static int _picture_merge(RGBAPicture *rgba, unsigned char *e, int x, int y) {
+    unsigned char *e_added, *e_base;
+    double alpha;
+
+    e_added = picture_get_pixel(_merge_added, x, y);
+    e_base = picture_get_pixel(_merge_base, x, y);
+    alpha = e_added[3] / 255.0;
+
+    e[3] = 255;
+    e[0] = (alpha * e_added[0]) + ((1.0 - alpha) * e_base[0]);
+    e[1] = (alpha * e_added[1]) + ((1.0 - alpha) * e_base[1]);
+    e[2] = (alpha * e_added[2]) + ((1.0 - alpha) * e_base[2]);
+
+    return 1;
+}
+
+RGBAPicture *picture_merge(RGBAPicture *base, RGBAPicture *added) {
+    RGBAPicture *result;
+
+    result = picture_new(base->width, base->height);
+    if (!result) {
+        return NULL;
+    }
+
+    _merge_base = base;
+    _merge_added = added;
+    picture_scan(result, _picture_merge);
+
+    return result;
 }
 
 /*
