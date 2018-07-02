@@ -4,14 +4,17 @@
 #include <string.h> /* strcmp */
 #include <math.h> /* round */
 #include <stdio.h> /* sscanf */
+#include <unistd.h>
 
 #include "flamethrower.h"
 #include "picture.h"
 #include "util.h"
 #include "noise.h"
 
-YCbCrPicture *template = NULL;
-YCbCrPicture *canvas = NULL;
+#if 0
+
+// YCbCrPicture *template = NULL;
+// YCbCrPicture *canvas = NULL;
 const char *input = NULL;
 const char *output = NULL;
 double rndm;
@@ -212,6 +215,179 @@ int secam_run(void) {
 }
 
 
+#endif
 
+#define SECAM_FLAG_QUIET    0x0001
 
+typedef struct {
+    const char *input;
+    const char *output;
+    double rndm;
+    double thrshld;
+    int frames;
+    int flags;
+    RGBAPicture *source;
+} SecamParameters;
 
+SecamParameters parms;
+
+int secam_init(int argc, char **argv) {
+    int opt;
+
+    parms.input = NULL;
+    parms.output = NULL;
+    parms.rndm = 0.001;
+    parms.thrshld = 0.024;
+    parms.frames = 1;
+    parms.flags = 0;
+    srand(time(NULL));
+
+    while ((opt = getopt(argc, argv, "i:o:r:t:a:qh")) != -1) {
+        switch (opt) {
+        case 'i':
+            parms.input = optarg;
+            break;
+        case 'o':
+            parms.output = optarg;
+            break;
+        case 'r':
+            sscanf(optarg, "%lf", &parms.rndm);
+            break;
+        case 't':
+            sscanf(optarg, "%lf", &parms.thrshld);
+            break;
+        case 'a':
+            sscanf(optarg, "%d", &parms.frames);
+            break;
+        case 'q':
+            parms.flags |= SECAM_FLAG_QUIET;
+            u_quiet = 1;
+            break;
+        case 'h':
+            printf(
+                "usage: %s -i [input] -o [output] [OPTIONS]\n"
+                "\n"
+                "-r [float] -- set random factor (def. %f)\n"
+                "-t [float] -- set threshold (def. %f)\n"
+                "-a [int] -- number of frames\n"
+                "-q -- be quiet\n",
+                argv[0], parms.rndm, parms.thrshld
+            );
+            break;
+        default:
+            u_error("unknown option -- %c", opt);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (!parms.input || !parms.output) {
+        u_error("no input or output file.");
+        return 0;
+    }
+
+    parms.source = picture_load(parms.input);
+    if (!parms.source) {
+        u_error("Can't open picture %s.", parms.input);
+        return 0;
+    }
+
+    return 1;
+}
+
+#define MIN_HS  12  /* minimal horizontal step */
+
+static RGBAPicture *_template;
+
+int secam_scan(RGBAPicture *t, unsigned char *e, int x, int y) {
+    static int point, ac /* affected component */;
+    int gain, hs /* horizontal step */;
+    double diff, fire, ethrshld;
+    unsigned char *lower;
+    unsigned char *p1, *p2;
+    int y1, y2;
+
+    if (x == 0 || x == t->width - 1) {
+        point = -1;
+        return 1;
+    }
+    
+    p1 = picture_get_pixel(_template, x, y);
+    p2 = picture_get_pixel(_template, x + 1, y);
+    y1 = 16 + (65.738 * p1[0] / 256.0)
+        + (129.057 * p1[1] / 256.0)
+        + (25.064 * p1[2] / 256.0);
+    y2 = 16 + (65.738 * p2[0] / 256.0)
+        + (129.057 * p2[1] / 256.0)
+        + (25.064 * p2[2] / 256.0);
+
+    diff = (0.0 + y2 - y1) / 256.0;
+    gain = point == -1 ? MIN_HS * 1.5 : x - point;
+    hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
+    
+    ethrshld = parms.thrshld + (FRAND() * parms.thrshld - parms.thrshld * 0.5);
+    
+    if ((diff * FRAND() + parms.rndm * FRAND() > ethrshld) && (gain > hs)) {
+        point = x;
+        ac = (FRAND() <= 0.25) ? 2 : 0; /* синий с вер. 0.25 */
+    }
+    
+    if (point < 0) {
+        return 1;
+    }
+    
+    // u_debug("gain = %d", gain * 8);
+    fire = (320.0 + FRAND() * 256.0) / (gain + 1.0) - 1.0;
+    if (fire < 0.0) {
+        /* fire is faded */
+        point = -1;
+        return 1;
+    }
+    
+    e[3] = COLOR_CLAMP(round(fire));
+    if (ac == 0) {
+        e[0] = 255;
+        e[2] = 96;
+    } else {
+        e[1] = 32;
+        e[2] = 255;
+    }
+    
+    return 1;
+}
+
+#define VERTICAL_RESOLUTION     288
+
+void secam_perform(void) {
+    RGBAPicture *template, *canvas, *frame;
+    double ar; /* aspect ratio */
+    int vw, vh; /* virtual width and height */
+
+    template = picture_clone(parms.source);
+    ar = (double)template->width / (double)template->height;
+    vw = ar * VERTICAL_RESOLUTION;
+    vh = VERTICAL_RESOLUTION / 2;
+    picture_resize(template, vw, vh);
+
+    canvas = picture_new(vw, vh);
+    _template = template;
+    picture_scan(canvas, secam_scan);
+    picture_resize(canvas, parms.source->width, parms.source->height);
+
+    frame = picture_merge(parms.source, canvas);
+    picture_save(frame, parms.output);
+
+    picture_delete(frame);
+    picture_delete(canvas);
+    picture_delete(template);
+}
+
+void secam_end(void) {
+    picture_delete(parms.source);
+}
+
+int secam_run(void) {
+    secam_perform();
+    secam_end();
+
+    return 0;
+}
