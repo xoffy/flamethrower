@@ -9,16 +9,22 @@ typedef struct {
 } RGBAPicture;
 
 #define RGBA_COMPONENTS 4
-#define COLOR_CLAMP(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : 0))
+#define COLOR_CLAMP(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
 
 unsigned char clamp_comp(int comp);
 
 RGBAPicture *picture_new(int width, int height);
+RGBAPicture *picture_clone(const RGBAPicture *src);
 RGBAPicture *picture_load(const char *path);
 void picture_delete(RGBAPicture *rgb);
 
 int picture_save(const RGBAPicture *rgb, const char *path);
 void picture_resize(RGBAPicture *rgb, int new_width, int new_height);
+
+unsigned char *picture_get_pixel(RGBAPicture *rgba, int x, int y);
+RGBAPicture *picture_merge(RGBAPicture *base, RGBAPicture *added);
+void picture_scan(RGBAPicture *rgba,
+    int (*f)(RGBAPicture *, unsigned char *, int, int));
 
 #endif
 
