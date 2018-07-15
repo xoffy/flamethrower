@@ -87,8 +87,12 @@ Flamethrower *secam_init(int argc, char *argv[]) {
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-int secam_scan(RGBAPicture *overlay, unsigned char *rgba_pixel,
-    int x, int y, void *data)
+int secam_scan(RGBAPicture *overlay,
+    unsigned char *rgba_pixel,
+    int x, int y,
+    const YUVAPicture *canvas,
+    double thrshld,
+    double rndm)
 {
     static int point, is_blue;
 
@@ -97,19 +101,17 @@ int secam_scan(RGBAPicture *overlay, unsigned char *rgba_pixel,
         return 1;
     }
 
-    const Flamethrower *app = (const Flamethrower *)data;
-
     /* do not forget that canvas is in YUVA not RGBA */
-    unsigned char *p1 = picture_get_pixel(app->canvas, x, y);
-    unsigned char *p2 = picture_get_pixel(app->canvas, x + 1, y);
+    unsigned char *p1 = picture_get_pixel(canvas, x, y);
+    unsigned char *p2 = picture_get_pixel(canvas, x + 1, y);
 
     double diff = (p2[0] - p1[0]) / 256.0;
     int gain = point == -1 ? MIN_HS * 1.5 : x - point;
     int horizontal_step = MIN_HS + FRAND() * (MIN_HS * 10.5);
 
-    double ethrshld = app->thrshld + (FRAND() * app->thrshld - app->thrshld * 0.5);
+    double ethrshld = thrshld + (FRAND() * thrshld - thrshld * 0.5);
 
-    if ((diff * FRAND() + app->rndm * FRAND() > ethrshld)
+    if ((diff * FRAND() + rndm * FRAND() > ethrshld)
         && (gain > horizontal_step))
     {
         point = x;
@@ -159,7 +161,15 @@ void secam_perform(Flamethrower *app) {
 
     for (int i = 0; i < app->frames; i++) {
         RGBAPicture *overlay = picture_new(virtual_width, virtual_height);
-        picture_scan(overlay, secam_scan, (void *)app);
+
+        for (int y = 0; y < overlay->height; y++) {
+            for (int x = 0; x < overlay->width; x++) {
+                unsigned char *cur_pixel = picture_get_pixel(overlay, x, y);
+                secam_scan(overlay, cur_pixel, x, y,
+                    app->canvas, app->thrshld, app->rndm);
+            }
+        }
+
         picture_resize(overlay, app->source->width, app->source->height);
         RGBAPicture *frame = rgba_picture_merge(app->source, overlay, 1.0);
 
