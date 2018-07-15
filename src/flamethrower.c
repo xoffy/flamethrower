@@ -97,7 +97,6 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     static int point, ac /* affected component */;
     int gain, hs /* horizontal step */;
     double diff, fire, ethrshld;
-    unsigned char *lower;
 
     if (x == 0) {
         point = -1;

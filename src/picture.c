@@ -288,13 +288,14 @@ unsigned char *ycbcr_picture_get_pixel(const YCbCrPicture *ycbcr, int x, int y)
 void ycbcr_picture_scan(YCbCrPicture *ycbcr,
     int (*func)(YCbCrPicture *, int x, int y, unsigned char *))
 {
-    int x, y, rc;
+    int x, y;
     
     u_debug("ycbcr_picture_scan(0x%X)...", ycbcr);
     
     for (y = 0; y < ycbcr->height; y++) {
         for (x = 0; x < ycbcr->width; x++) {
-            rc = func(ycbcr, x, y, ycbcr_picture_get_pixel(ycbcr, x, y));
+            /* FIXME: is this shouldn't return any value? */
+            func(ycbcr, x, y, ycbcr_picture_get_pixel(ycbcr, x, y));
         }
     }
 }
