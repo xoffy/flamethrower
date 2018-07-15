@@ -60,11 +60,23 @@ void u_error(const char *fmt, ...) {
     printf("\n");
 }
 
-void u_get_file_base(char *base, const char *path) {
-    char *dot;
+void u_critical(const char *fmt, ...) {
+    va_list args;
     
+    printf("[" COL_RED "---" COL_RESET "] ");
+    
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    
+    printf("\n");
+
+    exit(EXIT_FAILURE);
+}
+
+void u_get_file_base(char *base, const char *path) {
     strcpy(base, path);
-    dot = strrchr(base, '.');
+    char *dot = strrchr(base, '.');
     *dot = '\0';
 }
 
