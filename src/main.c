@@ -3,9 +3,10 @@
 #include "flamethrower.h"
 
 int main(int argc, char **argv) {
-    if (secam_init(argc, argv)) {
-        return secam_run();
+    Flamethrower *app = secam_init(argc, argv);
+    if (!app) {
+        return EXIT_FAILURE;
     }
-    return EXIT_FAILURE;
+    return secam_run(app);
 }
 
