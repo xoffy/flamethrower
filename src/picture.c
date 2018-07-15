@@ -171,3 +171,31 @@ RGBAPicture *rgba_picture_merge(RGBAPicture *base, RGBAPicture *added,
 void picture_clear(Picture *pic) {
     memset(pic->data, 0, pic->width * pic->height * PIC_COMPONENTS);
 }
+
+void picture_rgba_to_yuva(RGBAPicture *rgba) {
+    for (int y = 0; y < rgba->height; y++) {
+        for (int x = 0; x < rgba->width; x++) {
+            unsigned char *current_pixel = picture_get_pixel(rgba, x, y);
+            unsigned char Y = GET_Y_FROM_RGB(current_pixel);
+            unsigned char Cb = GET_U_FROM_RGB(current_pixel);
+            unsigned char Cr = GET_V_FROM_RGB(current_pixel);
+            current_pixel[0] = Y;
+            current_pixel[1] = Cb;
+            current_pixel[2] = Cr;
+        }
+    }
+}
+
+void picture_yuva_to_rgba(YUVAPicture *yuva) {
+    for (int y = 0; y < yuva->height; y++) {
+        for (int x = 0; x < yuva->width; x++) {
+            unsigned char *current_pixel = picture_get_pixel(yuva, x, y);
+            unsigned char r = GET_R_FROM_YUV(current_pixel);
+            unsigned char g = GET_G_FROM_YUV(current_pixel);
+            unsigned char b = GET_B_FROM_YUV(current_pixel);
+            current_pixel[0] = r;
+            current_pixel[1] = g;
+            current_pixel[2] = b;
+        }
+    }
+}

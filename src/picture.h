@@ -37,6 +37,8 @@ RGBAPicture     *rgba_picture_merge(
                     RGBAPicture *added,
                     double opacity
                 );
+void            picture_rgba_to_yuva(RGBAPicture *rgba);
+void            picture_yuva_to_rgba(YUVAPicture *yuva);
 
 #define GET_R_FROM_YUV(yuv) ( \
     COLOR_CLAMP(0.0 \
