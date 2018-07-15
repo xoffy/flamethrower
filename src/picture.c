@@ -138,32 +138,25 @@ void picture_scan(Picture *pic,
     }
 }
 
-static RGBAPicture *_merge_base, *_merge_added;
-
-static int _rgba_picture_merge(RGBAPicture *rgba,
-    unsigned char *e, int x, int y, void *data)
-{
-    unsigned char *e_added = picture_get_pixel(_merge_added, x, y);
-    unsigned char *e_base = picture_get_pixel(_merge_base, x, y);
-    double opacity = *((double *)data);
-    double alpha = e_added[3] / 255.0 * opacity;
-    
-    e[0] = (alpha * e_added[0]) + ((1.0 - alpha) * e_base[0]);
-    e[1] = (alpha * e_added[1]) + ((1.0 - alpha) * e_base[1]);
-    e[2] = (alpha * e_added[2]) + ((1.0 - alpha) * e_base[2]);
-    e[3] = 255;
-
-    return 1;
-}
-
-RGBAPicture *rgba_picture_merge(RGBAPicture *base, RGBAPicture *added,
+RGBAPicture *rgba_picture_merge(RGBAPicture *base,
+    RGBAPicture *added,
     double opacity)
 {
     RGBAPicture *result = picture_new(base->width, base->height);
 
-    _merge_base = base;
-    _merge_added = added;
-    picture_scan(result, _rgba_picture_merge, &opacity);
+    for (int y = 0; y < result->width; y++) {
+        for (int x = 0; x < result->width; x++) {
+            unsigned char *e_result = picture_get_pixel(result, x, y);
+            unsigned char *e_added = picture_get_pixel(added, x, y);
+            unsigned char *e_base = picture_get_pixel(base, x, y);
+            double alpha = e_added[3] / 255.0 * opacity;
+
+            e_result[0] = (alpha * e_added[0]) + ((1.0 - alpha) * e_base[0]);
+            e_result[1] = (alpha * e_added[1]) + ((1.0 - alpha) * e_base[1]);
+            e_result[2] = (alpha * e_added[2]) + ((1.0 - alpha) * e_base[2]);
+            e_result[3] = 255;
+        }
+    }
 
     return result;
 }
