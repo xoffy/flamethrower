@@ -6,25 +6,80 @@ typedef struct {
     unsigned char   *data;
     int             width;
     int             height;
-} RGBAPicture;
+} Picture;
 
-#define RGBA_COMPONENTS 4
+typedef Picture RGBAPicture;
+typedef Picture YUVAPicture;
+
+#define PIC_COMPONENTS 4
 #define COLOR_CLAMP(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
 
-unsigned char clamp_comp(int comp);
+Picture         *picture_new(int width, int height);
+Picture         *picture_clone(const Picture *src);
+Picture         *picture_load(const char *path);
+void            picture_delete(Picture *pic);
+int             picture_save(const Picture *pic, const char *path);
+void            picture_resize(Picture *pic, int new_width, int new_height);
+void            picture_clear(Picture *rgba);
+unsigned char   *picture_get_pixel(Picture *pic, int x, int y);
+void            picture_scan(
+                    Picture *pic,
+                    int (*f)(
+                        Picture *self,
+                        unsigned char *current_pixel,
+                        int x, int y,
+                        void *opt_data
+                    ),
+                    void *data
+                );
+RGBAPicture     *rgba_picture_merge(
+                    RGBAPicture *base,
+                    RGBAPicture *added,
+                    double opacity
+                );
 
-RGBAPicture *picture_new(int width, int height);
-RGBAPicture *picture_clone(const RGBAPicture *src);
-RGBAPicture *picture_load(const char *path);
-void picture_delete(RGBAPicture *rgb);
+#define GET_R_FROM_YUV(yuv) ( \
+    COLOR_CLAMP(0.0 \
+        + (298.082 * (yuv)[0] / 256.0) \
+        + (408.583 * (yuv)[2] / 256.0) \
+        - 222.921) \
+)
 
-int picture_save(const RGBAPicture *rgb, const char *path);
-void picture_resize(RGBAPicture *rgb, int new_width, int new_height);
+#define GET_G_FROM_YUV(yuv) ( \
+    COLOR_CLAMP(0.0 \
+        + (298.082 * (yuv)[0] / 256.0) \
+        - (100.291 * (yuv)[1] / 256.0) \
+        - (208.120 * (yuv)[2] / 256.0) \
+        + 135.576) \
+)
 
-unsigned char *picture_get_pixel(RGBAPicture *rgba, int x, int y);
-RGBAPicture *picture_merge(RGBAPicture *base, RGBAPicture *added);
-void picture_scan(RGBAPicture *rgba,
-    int (*f)(RGBAPicture *, unsigned char *, int, int));
+#define GET_B_FROM_YUV(yuv) ( \
+    COLOR_CLAMP(0.0 \
+        + (298.082 * (yuv)[0] / 256.0) \
+        + (516.412 * (yuv)[1] / 256.0) \
+        - 276.836) \
+)
+
+#define GET_Y_FROM_RGB(rgb) ( \
+    COLOR_CLAMP(16.0 \
+        + (65.738 * (rgb)[0] / 256.0) \
+        + (129.057 * (rgb)[1] / 256.0) \
+        + (25.064 * (rgb)[2] / 256.0)) \
+)
+
+#define GET_U_FROM_RGB(rgb) ( \
+    COLOR_CLAMP(128.0 \
+        - (37.945 * (rgb)[0] / 256.0) \
+        - (74.494 * (rgb)[1] / 256.0) \
+        + (112.439 * (rgb)[2] / 256.0)) \
+)
+
+#define GET_V_FROM_RGB(rgb) ( \
+    COLOR_CLAMP(128.0 \
+        + (112.439 * (rgb)[0] / 256.0) \
+        - (94.154 * (rgb)[1] / 256.0) \
+        - (18.285 * (rgb)[2] / 256.0)) \
+)
 
 #endif
 
