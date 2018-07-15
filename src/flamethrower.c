@@ -153,24 +153,9 @@ void secam_perform(Flamethrower *app) {
         (double)app->source->width / (double)app->source->height;
     int virtual_width = aspect_ratio * app->resolution;
     int virtual_height = app->resolution / 2;
-    RGBAPicture *rgba_canvas = picture_clone(app->source);
-    picture_resize(rgba_canvas, virtual_width, virtual_height);
-
-    /* canvas should be in YUVA */
-    app->canvas = picture_new(virtual_width, virtual_height);
-    for (int y = 0; y < virtual_height; y++) {
-        for (int x = 0; x < virtual_width; x++) {
-            unsigned char *yuva_pixel = picture_get_pixel(app->canvas, x, y);
-            unsigned char *rgba_pixel = picture_get_pixel(rgba_canvas, x, y);
-
-            yuva_pixel[0] = GET_Y_FROM_RGB(rgba_pixel);
-            yuva_pixel[1] = GET_U_FROM_RGB(rgba_pixel);
-            yuva_pixel[2] = GET_V_FROM_RGB(rgba_pixel);
-            yuva_pixel[3] = rgba_pixel[3];
-        }
-    }
-
-    picture_delete(rgba_canvas);
+    app->canvas = picture_clone(app->source);
+    picture_resize(app->canvas, virtual_width, virtual_height);
+    picture_rgba_to_yuva(app->canvas); // canvas should be in YUVA
 
     for (int i = 0; i < app->frames; i++) {
         RGBAPicture *overlay = picture_new(virtual_width, virtual_height);
