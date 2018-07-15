@@ -185,6 +185,7 @@ int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
     }
     
     c[0] = clamp_comp(noise(x));
+    return 1;
 }
 
 void noise_test() {
