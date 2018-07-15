@@ -22,16 +22,6 @@ int             picture_save(const Picture *pic, const char *path);
 void            picture_resize(Picture *pic, int new_width, int new_height);
 void            picture_clear(Picture *rgba);
 unsigned char   *picture_get_pixel(const Picture *pic, int x, int y);
-void            picture_scan(
-                    Picture *pic,
-                    int (*f)(
-                        Picture *self,
-                        unsigned char *current_pixel,
-                        int x, int y,
-                        void *opt_data
-                    ),
-                    void *data
-                );
 RGBAPicture     *rgba_picture_merge(
                     RGBAPicture *base,
                     RGBAPicture *added,
