@@ -8,8 +8,11 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/runtime/flamethrower",
-            "args": [ "alpha.jpg", "beta.jpg" ],
+            "program": "${workspaceFolder}/ninja_build/flamethrower",
+            "args": [
+                "-i ntest-in.jpg",
+                "-i ntest-out.jpg"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/runtime",
             "environment": [],
