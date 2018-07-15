@@ -9,7 +9,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/runtime/flamethrower",
-            "args": [ "alpha.jpg", "beta.jpg" ],
+            "args": [
+                "-i dtest-in.jpg",
+                "-o dtest-out.jpg"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/runtime",
             "environment": [],
