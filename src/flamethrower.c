@@ -90,10 +90,6 @@ void secam_end(void) {
     }
 }
 
-double random1(void) {
-    return rand() / (double)RAND_MAX;
-}
-
 #define MIN_HS  12  /* minimal horizontal step */
 
 int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
@@ -106,32 +102,32 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
         point = -1;
         return 1;
     }
-    
+
     diff = ((0.0
         + ycbcr_picture_get_pixel(canvas, x, y)[0]
         - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
         / 256.0);
     gain = point == -1 ? MIN_HS * 1.5 : x - point;
     hs = MIN_HS + random1() * (MIN_HS * 10.5);
-    
+
     ethrshld = thrshld + (random1() * thrshld - thrshld * 0.5);
-    
+
     if ((diff * random1() + rndm * random1() > ethrshld) && (gain > hs)) {
         point = x;
         ac = 2 - (random1() <= 0.25); /* Cb с вер. 0.25 */
     }
-    
+
     if (point < 0) {
         return 1;
     }
-    
+
     fire = (320.0 + random1() * 128.0) / (gain + 1.0) - 1.0;
     if (fire < 0) {
         /* fire is faded */
         point = -1;
         return 1;
     }
-    
+
     e[ac] = clamp_comp(e[ac] + fire);
 #if 0
     if (y < (overlay->width - 1)) {
@@ -139,7 +135,7 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
         lower[ac] = clamp_comp(lower[ac] + fire);
     }
 #endif
-    
+
     return 1;
 }
 
@@ -151,7 +147,7 @@ void secam_perform_simple(void) {
     char base[256], out[256];
     const char *ext;
     int i;
-    
+
 
     u_debug("secam_perform_simple()...");
 
@@ -166,10 +162,10 @@ void secam_perform_simple(void) {
         u_error("secam_perform(): no canvas");
         return;
     }
-    
+
     u_get_file_base(base, output);
     ext = u_get_file_ext(output);
-    
+
     for (i = 0; i < anime; i++) {
         overlay = ycbcr_picture_dummy(vw, vh);
         frame = ycbcr_picture_copy(template);
@@ -187,19 +183,19 @@ int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
     if ((x == 0) && (y % 2 == 0)) {
         noise_init();
     }
-    
+
     c[0] = clamp_comp(noise(x));
 }
 
 void noise_test() {
     YCbCrPicture *ycbcr;
-    
+
     u_debug("noise_test()...");
-    
+
     noise_init();
     noise_scale = 0.12;
     noise_amplitude = 255.0;
-    
+
     ycbcr = ycbcr_picture_dummy(256, 64);
     ycbcr_picture_scan(ycbcr, noise_scan);
     ycbcr_picture_brdg_write(ycbcr, "noise.jpg");
@@ -210,57 +206,54 @@ int secam_run(void) {
 
     secam_perform_simple();
     secam_end();
-    
+
     return EXIT_SUCCESS;
 }
 
 
 #endif
 
-#define SECAM_FLAG_QUIET    0x0001
+#define APP_FLAG_QUIET    0x0001
 
-typedef struct {
-    const char *input;
-    const char *output;
-    double rndm;
-    double thrshld;
-    int frames;
-    int flags;
-    RGBAPicture *source;
-} SecamParameters;
+#define DEFAULT_VERTICAL_RESOLUTION 288
 
-SecamParameters parms;
-
-int secam_init(int argc, char **argv) {
+Flamethrower *secam_init(int argc, char *argv[]) {
+    Flamethrower *app;
     int opt;
 
-    parms.input = NULL;
-    parms.output = NULL;
-    parms.rndm = 0.001;
-    parms.thrshld = 0.024;
-    parms.frames = 1;
-    parms.flags = 0;
+    app = malloc(sizeof(Flamethrower));
+    app->input_path     = NULL;
+    app->output_path    = NULL;
+    app->frames         = 1;
+    app->rndm           = 0.001;
+    app->thrshld        = 0.024;
+    app->flags          = 0;
+    app->resolution     = DEFAULT_VERTICAL_RESOLUTION;
+
     srand(time(NULL));
 
-    while ((opt = getopt(argc, argv, "i:o:r:t:a:qh")) != -1) {
+    while ((opt = getopt(argc, argv, "i:o:r:t:a:y:qh")) != -1) {
         switch (opt) {
         case 'i':
-            parms.input = optarg;
+            app->input_path = optarg;
             break;
         case 'o':
-            parms.output = optarg;
+            app->output_path = optarg;
             break;
         case 'r':
-            sscanf(optarg, "%lf", &parms.rndm);
+            sscanf(optarg, "%lf", &app->rndm);
             break;
         case 't':
-            sscanf(optarg, "%lf", &parms.thrshld);
+            sscanf(optarg, "%lf", &app->thrshld);
             break;
         case 'a':
-            sscanf(optarg, "%d", &parms.frames);
+            sscanf(optarg, "%d", &app->frames);
+            break;
+        case 'y':
+            sscanf(optarg, "%d", &app->resolution);
             break;
         case 'q':
-            parms.flags |= SECAM_FLAG_QUIET;
+            app->flags |= APP_FLAG_QUIET;
             u_quiet = 1;
             break;
         case 'h':
@@ -271,123 +264,146 @@ int secam_init(int argc, char **argv) {
                 "-t [float] -- set threshold (def. %f)\n"
                 "-a [int] -- number of frames\n"
                 "-q -- be quiet\n",
-                argv[0], parms.rndm, parms.thrshld
+                argv[0], app->rndm, app->thrshld
             );
             break;
         default:
-            u_error("unknown option -- %c", opt);
+            u_error("unknown option: `%c`", opt);
             exit(EXIT_FAILURE);
         }
     }
 
-    if (!parms.input || !parms.output) {
+    if (!app->input_path || !app->output_path) {
         u_error("no input or output file.");
-        return 0;
+        return NULL;
     }
 
-    parms.source = picture_load(parms.input);
-    if (!parms.source) {
-        u_error("Can't open picture %s.", parms.input);
-        return 0;
+    app->source = picture_load(app->input_path);
+    if (!app->source) {
+        u_error("Can't open picture %s.", app->input_path);
+        return NULL;
     }
 
-    return 1;
+    return app;
 }
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-static RGBAPicture *_template;
+int secam_scan(RGBAPicture *overlay, unsigned char *rgba_pixel,
+    int x, int y, void *data)
+{
+    static int point, is_blue;
 
-int secam_scan(RGBAPicture *t, unsigned char *e, int x, int y) {
-    static int point, ac /* affected component */;
-    int gain, hs /* horizontal step */;
-    double diff, fire, ethrshld;
-    unsigned char *lower;
-    unsigned char *p1, *p2;
-    int y1, y2;
-
-    if (x == 0 || x == t->width - 1) {
+    if (x == 0 || x == overlay->width - 1) {
         point = -1;
         return 1;
     }
-    
-    p1 = picture_get_pixel(_template, x, y);
-    p2 = picture_get_pixel(_template, x + 1, y);
-    y1 = 16 + (65.738 * p1[0] / 256.0)
-        + (129.057 * p1[1] / 256.0)
-        + (25.064 * p1[2] / 256.0);
-    y2 = 16 + (65.738 * p2[0] / 256.0)
-        + (129.057 * p2[1] / 256.0)
-        + (25.064 * p2[2] / 256.0);
 
-    diff = (0.0 + y2 - y1) / 256.0;
-    gain = point == -1 ? MIN_HS * 1.5 : x - point;
-    hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
-    
-    ethrshld = parms.thrshld + (FRAND() * parms.thrshld - parms.thrshld * 0.5);
-    
-    if ((diff * FRAND() + parms.rndm * FRAND() > ethrshld) && (gain > hs)) {
+    const Flamethrower *app = (const Flamethrower *)data;
+
+    /* do not forget that canvas is in YUVA not RGBA */
+    unsigned char *p1 = picture_get_pixel(app->canvas, x, y);
+    unsigned char *p2 = picture_get_pixel(app->canvas, x + 1, y);
+
+    double diff = (p2[0] - p1[0]) / 256.0;
+    int gain = point == -1 ? MIN_HS * 1.5 : x - point;
+    int horizontal_step = MIN_HS + FRAND() * (MIN_HS * 10.5);
+
+    double ethrshld = app->thrshld + (FRAND() * app->thrshld - app->thrshld * 0.5);
+
+    if ((diff * FRAND() + app->rndm * FRAND() > ethrshld)
+        && (gain > horizontal_step))
+    {
         point = x;
-        ac = (FRAND() <= 0.25) ? 2 : 0; /* синий с вер. 0.25 */
+        is_blue = (FRAND() <= 0.25);
     }
-    
+
     if (point < 0) {
         return 1;
     }
-    
-    // u_debug("gain = %d", gain * 8);
-    fire = (320.0 + FRAND() * 256.0) / (gain + 1.0) - 1.0;
+
+    double fire = 320.0 / (gain + 1.0) - 1.0;
     if (fire < 0.0) {
-        /* fire is faded */
+        /* the fire is faded */
+        /* FIXME: but really it's never fade */
         point = -1;
         return 1;
     }
-    
-    e[3] = COLOR_CLAMP(round(fire));
-    if (ac == 0) {
-        e[0] = 255;
-        e[2] = 96;
+
+    unsigned char yuva_pixel[4];
+    yuva_pixel[0] = p1[0];
+    yuva_pixel[1] = p1[1];
+    yuva_pixel[2] = p1[2];
+    // yuva_pixel[3] = p1[3];
+
+    if (is_blue) {
+        yuva_pixel[1] = COLOR_CLAMP(yuva_pixel[1] + round(fire));
     } else {
-        e[1] = 32;
-        e[2] = 255;
+        yuva_pixel[2] = COLOR_CLAMP(yuva_pixel[2] + round(fire));
     }
-    
+
+    rgba_pixel[0] = GET_R_FROM_YUV(yuva_pixel);
+    rgba_pixel[1] = GET_G_FROM_YUV(yuva_pixel);
+    rgba_pixel[2] = GET_B_FROM_YUV(yuva_pixel);
+    rgba_pixel[3] = COLOR_CLAMP(round(fire));
+
     return 1;
 }
 
-#define VERTICAL_RESOLUTION     288
+void secam_perform(Flamethrower *app) {
+    double aspect_ratio =
+        (double)app->source->width / (double)app->source->height;
+    int virtual_width = aspect_ratio * app->resolution;
+    int virtual_height = app->resolution / 2;
+    RGBAPicture *rgba_canvas = picture_clone(app->source);
+    picture_resize(rgba_canvas, virtual_width, virtual_height);
 
-void secam_perform(void) {
-    RGBAPicture *template, *canvas, *frame;
-    double ar; /* aspect ratio */
-    int vw, vh; /* virtual width and height */
+    /* canvas should be in YUVA */
+    app->canvas = picture_new(virtual_width, virtual_height);
+    for (int y = 0; y < virtual_height; y++) {
+        for (int x = 0; x < virtual_width; x++) {
+            unsigned char *yuva_pixel = picture_get_pixel(app->canvas, x, y);
+            unsigned char *rgba_pixel = picture_get_pixel(rgba_canvas, x, y);
 
-    template = picture_clone(parms.source);
-    ar = (double)template->width / (double)template->height;
-    vw = ar * VERTICAL_RESOLUTION;
-    vh = VERTICAL_RESOLUTION / 2;
-    picture_resize(template, vw, vh);
+            yuva_pixel[0] = GET_Y_FROM_RGB(rgba_pixel);
+            yuva_pixel[1] = GET_U_FROM_RGB(rgba_pixel);
+            yuva_pixel[2] = GET_V_FROM_RGB(rgba_pixel);
+            yuva_pixel[3] = rgba_pixel[3];
+        }
+    }
 
-    canvas = picture_new(vw, vh);
-    _template = template;
-    picture_scan(canvas, secam_scan);
-    picture_resize(canvas, parms.source->width, parms.source->height);
+    picture_delete(rgba_canvas);
 
-    frame = picture_merge(parms.source, canvas);
-    picture_save(frame, parms.output);
+    for (int i = 0; i < app->frames; i++) {
+        RGBAPicture *overlay = picture_new(virtual_width, virtual_height);
+        picture_scan(overlay, secam_scan, (void *)app);
+        picture_resize(overlay, app->source->width, app->source->height);
+        RGBAPicture *frame = rgba_picture_merge(app->source, overlay, 1.0);
 
-    picture_delete(frame);
-    picture_delete(canvas);
-    picture_delete(template);
+        if (app->frames == 1) {
+            picture_save(frame, app->output_path);
+            // picture_save(overlay, app->output_path);
+        } else {
+            char base[256], output[256];
+            u_get_file_base(base, app->output_path);
+            const char *ext = u_get_file_ext(app->output_path);
+            sprintf(output, "%s-%d.%s", base, i, ext);
+            picture_save(frame, output);
+        }
+
+        picture_delete(frame);
+        picture_delete(overlay);
+    }
 }
 
-void secam_end(void) {
-    picture_delete(parms.source);
+void secam_end(Flamethrower *app) {
+    picture_delete(app->canvas);
+    picture_delete(app->source);
 }
 
-int secam_run(void) {
-    secam_perform();
-    secam_end();
+int secam_run(Flamethrower *app) {
+    secam_perform(app);
+    secam_end(app);
 
     return 0;
 }
