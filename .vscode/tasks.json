@@ -4,15 +4,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build & Install",
+            "label": "Build",
             "type": "shell",
-            "command": "ninja",
-            "args": [ "install" ],
+            "command": "make",
+            "args": [],
             "options": {
-                "cwd": "${workspaceRoot}/build",
-                "env": {
-                    "DESTDIR": "${workspaceRoot}/runtime"
-                }
+                "cwd": "${workspaceRoot}/build"
             },
             "group": {
                 "kind": "build",
