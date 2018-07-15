@@ -8,10 +8,7 @@
                 ],
                 "limitSymbolsToIncludedHeaders": true
             },
-            "includePath": [
-                "${workspaceFolder}",
-                "${workspaceFolder}/third-party"
-            ],
+            "compileCommands": "${workspaceFolder}/ninja_build/compile_commands.json",
             "defines": [],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c99",
