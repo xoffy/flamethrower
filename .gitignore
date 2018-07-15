@@ -1,6 +1,7 @@
 
-build
+*~
+*_build
+*_arena
 runtime
 
-*~
 .vscode/settings.json
