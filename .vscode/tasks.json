@@ -9,7 +9,7 @@
             "command": "make",
             "args": [],
             "options": {
-                "cwd": "${workspaceRoot}/build"
+                "cwd": "${workspaceRoot}/cmake_build"
             },
             "group": {
                 "kind": "build",
