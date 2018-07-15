@@ -21,7 +21,7 @@ void            picture_delete(Picture *pic);
 int             picture_save(const Picture *pic, const char *path);
 void            picture_resize(Picture *pic, int new_width, int new_height);
 void            picture_clear(Picture *rgba);
-unsigned char   *picture_get_pixel(Picture *pic, int x, int y);
+unsigned char   *picture_get_pixel(const Picture *pic, int x, int y);
 void            picture_scan(
                     Picture *pic,
                     int (*f)(

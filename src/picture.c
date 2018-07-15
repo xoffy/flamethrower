@@ -119,7 +119,7 @@ void picture_resize(Picture *pic, int new_width, int new_height) {
     pic->height = new_height;
 }
 
-unsigned char *picture_get_pixel(Picture *pic, int x, int y) {
+unsigned char *picture_get_pixel(const Picture *pic, int x, int y) {
     return pic->data
         + y * pic->width * PIC_COMPONENTS
         + x * PIC_COMPONENTS;
