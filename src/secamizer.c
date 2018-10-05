@@ -87,10 +87,6 @@ void secamizer_end(void) {
     }
 }
 
-double random1(void) {
-    return rand() / (double)RAND_MAX;
-}
-
 #define MIN_HS  12  /* minimal horizontal step */
 
 int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
@@ -108,20 +104,20 @@ int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
         - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
         / 256.0);
     gain = point == -1 ? MIN_HS * 1.5 : x - point;
-    hs = MIN_HS + random1() * (MIN_HS * 10.5);
+    hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
     
-    ethrshld = thrshld + (random1() * thrshld - thrshld * 0.5);
+    ethrshld = thrshld + (FRAND() * thrshld - thrshld * 0.5);
     
-    if ((diff * random1() + rndm * random1() > ethrshld) && (gain > hs)) {
+    if ((diff * FRAND() + rndm * FRAND() > ethrshld) && (gain > hs)) {
         point = x;
-        ac = 2 - (random1() <= 0.25); /* Cb с вер. 0.25 */
+        ac = 2 - (FRAND() <= 0.25); /* Cb с вер. 0.25 */
     }
     
     if (point < 0) {
         return 1;
     }
     
-    fire = (320.0 + random1() * 128.0) / (gain + 1.0) - 1.0;
+    fire = (320.0 + FRAND() * 128.0) / (gain + 1.0) - 1.0;
     if (fire < 0) {
         /* fire is faded */
         point = -1;
