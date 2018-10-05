@@ -10,50 +10,44 @@
 #include "util.h"
 #include "noise.h"
 
-typedef struct {
-    YCbCrPicture *template;
-    YCbCrPicture *canvas;
-    const char *input_path;
-    const char *output_path;
-    double rndm;
-    double thrshld;
-    int frames;
-} SecamizerParameters;
-
-SecamizerParameters parms;
-
-int secamizer_init(int argc, char **argv) {
+Secamizer *secamizer_init(int argc, char **argv) {
     int idx = 1;
 
     srand(time(NULL));
 
+    Secamizer *self = malloc(sizeof(Secamizer));
+    if (!self) {
+        u_error("Failed to allocate Secamizer!");
+        return NULL;
+    }
+
     // Why? Because I don't mind diversity. There must be either arrows or dots.
-    parms.rndm = 0.001;
-    parms.thrshld = 0.024;
-    parms.frames = 1;
+    self->rndm = 0.001;
+    self->thrshld = 0.024;
+    self->frames = 1;
 
     for (idx = 1; idx < argc; idx++) {
         if (strcmp(argv[idx], "-i") == 0) {
             if (idx < argc - 1) {
-                parms.input_path = argv[++idx];
+                self->input_path = argv[++idx];
             }
         } else if (strcmp(argv[idx], "-o") == 0) {
             if (idx < argc - 1) {
-                parms.output_path = argv[++idx];
+                self->output_path = argv[++idx];
             }
         } else if (strcmp(argv[idx], "-r") == 0) {
             if (idx < argc - 1) {
-                sscanf(argv[++idx], "%lf", &parms.rndm);
+                sscanf(argv[++idx], "%lf", &self->rndm);
             }
         } else if (strcmp(argv[idx], "-t") == 0) {
             if (idx < argc - 1) {
-                sscanf(argv[++idx], "%lf", &parms.thrshld);
+                sscanf(argv[++idx], "%lf", &self->thrshld);
             }
         } else if (strcmp(argv[idx], "-q") == 0) {
             u_quiet = 1;
         } else if (strcmp(argv[idx], "-a") == 0) {
             if (idx < argc - 1) {
-                sscanf(argv[++idx], "%d", &parms.frames);
+                sscanf(argv[++idx], "%d", &self->frames);
             }
         } else if (strcmp(argv[idx], "-h") == 0) {
             printf(
@@ -63,7 +57,7 @@ int secamizer_init(int argc, char **argv) {
                 "-t [float] -- set threshold (def. %f)\n"
                 "-a [int] -- number of frames\n"
                 "-q -- be quiet\n",
-                argv[0], parms.rndm, parms.thrshld
+                argv[0], self->rndm, self->thrshld
             );
             return 0;
         } else {
@@ -72,33 +66,81 @@ int secamizer_init(int argc, char **argv) {
         }
     }
 
-    if (!parms.input_path) {
+    if (!self->input_path) {
         u_error("No input file.");
         return 0;
     }
 
-    if (!parms.output_path) {
+    if (!self->output_path) {
         u_error("No output file.");
         return 0;
     }
 
-    parms.template = ycbcr_picture_brdg_load(parms.input_path);
-    if (!parms.template) {
-        u_error("Can't open picture %s.", parms.input_path);
+    self->template = ycbcr_picture_brdg_load(self->input_path);
+    if (!self->template) {
+        u_error("Can't open picture %s.", self->input_path);
         return 0;
     }
 
-    return 1;
+    return self;
 }
 
-void secamizer_end(void) {
-    u_debug("secamizer_end()...");
-    ycbcr_picture_delete(parms.template);
+int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e);
+
+void secamizer_run(Secamizer *self) {
+    YCbCrPicture *canvas, *overlay, *frame; // *ov_odd, *ov_even;
+    double ar; /* aspect ratio */
+    int vr; /* vertical resolution */
+    int vw, vh; /* virtual width and height */
+    char base[256], out[256];
+    const char *ext;
+    int i;
+
+    canvas = ycbcr_picture_copy(self->template);
+    vr = 448;
+    ar = (double)self->template->width / (double)self->template->height;
+    vw = ar * vr;
+    vh = vr / 2;
+    ycbcr_picture_brdg_resize(&canvas, vw, vh);
+
+    if (!canvas) {
+        u_error("critical: no canvas");
+        return;
+    }
+    
+    u_get_file_base(base, self->output_path);
+    ext = u_get_file_ext(self->output_path);
+    
+    for (i = 0; i < self->frames; i++) {
+        overlay = ycbcr_picture_dummy(vw, vh);
+        frame = ycbcr_picture_copy(self->template);
+
+        for (int y = 0; y < overlay->height; y++) {
+            for (int x = 0; x < overlay->width; x++) {
+                secamizer_scan(self, canvas, overlay, x, y,
+                    ycbcr_picture_get_pixel(overlay, x, y));
+            }
+        }
+
+        ycbcr_picture_brdg_resize(&overlay,
+            self->template->width, self->template->height);
+        ycbcr_picture_merge(frame, overlay);
+        sprintf(out, "%s.%d.%s", base, i, ext);
+        ycbcr_picture_brdg_write(frame, out);
+        ycbcr_picture_delete(frame);
+        ycbcr_picture_delete(overlay);
+    }
+}
+
+void secamizer_destroy(Secamizer **selfp) {
+    Secamizer *self = *selfp;
+    ycbcr_picture_delete(self->template);
+    *selfp = NULL;
 }
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
+int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     static int point, ac /* affected component */;
     int gain, hs /* horizontal step */;
     double diff, fire, ethrshld;
@@ -109,16 +151,16 @@ int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     }
     
     diff = ((0.0
-        + ycbcr_picture_get_pixel(parms.canvas, x, y)[0]
-        - ycbcr_picture_get_pixel(parms.canvas, x - 1, y)[0])
+        + ycbcr_picture_get_pixel(canvas, x, y)[0]
+        - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
         / 256.0);
     gain = point == -1 ? MIN_HS * 1.5 : x - point;
     hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
     
-    ethrshld = parms.thrshld +
-        (FRAND() * parms.thrshld - parms.thrshld * 0.5);
+    ethrshld = self->thrshld +
+        (FRAND() * self->thrshld - self->thrshld * 0.5);
     
-    if ((diff * FRAND() + parms.rndm * FRAND() > ethrshld) && (gain > hs)) {
+    if ((diff * FRAND() + self->rndm * FRAND() > ethrshld) && (gain > hs)) {
         point = x;
         ac = 2 - (FRAND() <= 0.25); /* Cb с вер. 0.25 */
     }
@@ -145,50 +187,7 @@ int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     return 1;
 }
 
-void secamizer_perform_simple(void) {
-    YCbCrPicture *overlay, *frame; // *ov_odd, *ov_even;
-    double ar; /* aspect ratio */
-    int vr; /* vertical resolution */
-    int vw, vh; /* virtual width and height */
-    char base[256], out[256];
-    const char *ext;
-    int i;
-    
 
-    u_debug("secamizer_perform_simple()...");
-
-    parms.canvas = ycbcr_picture_copy(parms.template);
-    vr = 448;
-    ar = (double)parms.template->width / (double)parms.template->height;
-    vw = ar * vr;
-    vh = vr / 2;
-    ycbcr_picture_brdg_resize(&parms.canvas, vw, vh);
-
-    if (!parms.canvas) {
-        u_error("secamizer_perform(): no canvas");
-        return;
-    }
-    
-    u_get_file_base(base, parms.output_path);
-    ext = u_get_file_ext(parms.output_path);
-
-    u_debug("*** PP -1 ***");
-    
-    for (i = 0; i < parms.frames; i++) {
-        u_debug("*** PP 0 ***");
-        overlay = ycbcr_picture_dummy(vw, vh);
-        frame = ycbcr_picture_copy(parms.template);
-        ycbcr_picture_scan(overlay, secamizer_scan);
-        ycbcr_picture_brdg_resize(&overlay,
-            parms.template->width, parms.template->height);
-        ycbcr_picture_merge(frame, overlay);
-        sprintf(out, "%s.%d.%s", base, i, ext);
-        u_debug("*** PP 1: %s ***", out);
-        ycbcr_picture_brdg_write(frame, out);
-        ycbcr_picture_delete(frame);
-        ycbcr_picture_delete(overlay);
-    }
-}
 
 int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
     if ((x == 0) && (y % 2 == 0)) {
@@ -213,14 +212,7 @@ void noise_test() {
     ycbcr_picture_brdg_write(ycbcr, "noise.jpg");
 }
 
-int secamizer_run(void) {
-    u_debug("secamizer_run()...");
 
-    secamizer_perform_simple();
-    secamizer_end();
-    
-    return EXIT_SUCCESS;
-}
 
 
 

@@ -3,9 +3,14 @@
 #include "secamizer.h"
 
 int main(int argc, char **argv) {
-    if (secamizer_init(argc, argv)) {
-        return secamizer_run();
+    Secamizer *secamizer = secamizer_init(argc, argv);
+    if (!secamizer) {
+        return EXIT_FAILURE;
     }
-    return EXIT_FAILURE;
+    
+    secamizer_run(secamizer);
+    secamizer_destroy(&secamizer);
+
+    return EXIT_SUCCESS;
 }
 
