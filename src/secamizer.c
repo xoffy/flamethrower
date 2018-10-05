@@ -18,7 +18,7 @@ double rndm;
 double thrshld;
 int anime = 1;
 
-int secam_init(int argc, char **argv) {
+int secamizer_init(int argc, char **argv) {
     int idx = 1;
 
     srand(time(NULL));
@@ -80,8 +80,8 @@ int secam_init(int argc, char **argv) {
     return 1;
 }
 
-void secam_end(void) {
-    u_debug("secam_end()...");
+void secamizer_end(void) {
+    u_debug("secamizer_end()...");
     if (template) {
         ycbcr_picture_delete(template);
     }
@@ -93,7 +93,7 @@ double random1(void) {
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
+int secamizer_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     static int point, ac /* affected component */;
     int gain, hs /* horizontal step */;
     double diff, fire, ethrshld;
@@ -139,7 +139,7 @@ int secam_scan(YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     return 1;
 }
 
-void secam_perform_simple(void) {
+void secamizer_perform_simple(void) {
     YCbCrPicture *overlay, *frame; // *ov_odd, *ov_even;
     double ar; /* aspect ratio */
     int vr; /* vertical resolution */
@@ -149,7 +149,7 @@ void secam_perform_simple(void) {
     int i;
     
 
-    u_debug("secam_perform_simple()...");
+    u_debug("secamizer_perform_simple()...");
 
     canvas = ycbcr_picture_copy(template);
     vr = 448;
@@ -159,7 +159,7 @@ void secam_perform_simple(void) {
     ycbcr_picture_brdg_resize(&canvas, vw, vh);
 
     if (!canvas) {
-        u_error("secam_perform(): no canvas");
+        u_error("secamizer_perform(): no canvas");
         return;
     }
     
@@ -169,7 +169,7 @@ void secam_perform_simple(void) {
     for (i = 0; i < anime; i++) {
         overlay = ycbcr_picture_dummy(vw, vh);
         frame = ycbcr_picture_copy(template);
-        ycbcr_picture_scan(overlay, secam_scan);
+        ycbcr_picture_scan(overlay, secamizer_scan);
         ycbcr_picture_brdg_resize(&overlay, template->width, template->height);
         ycbcr_picture_merge(frame, overlay);
         sprintf(out, "%s.%d.%s", base, i, ext);
@@ -202,11 +202,11 @@ void noise_test() {
     ycbcr_picture_brdg_write(ycbcr, "noise.jpg");
 }
 
-int secam_run(void) {
-    u_debug("secam_run()...");
+int secamizer_run(void) {
+    u_debug("secamizer_run()...");
 
-    secam_perform_simple();
-    secam_end();
+    secamizer_perform_simple();
+    secamizer_end();
     
     return EXIT_SUCCESS;
 }

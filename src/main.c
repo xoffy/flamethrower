@@ -3,8 +3,8 @@
 #include "flamethrower.h"
 
 int main(int argc, char **argv) {
-    if (secam_init(argc, argv)) {
-        return secam_run();
+    if (secamizer_init(argc, argv)) {
+        return secamizer_run();
     }
     return EXIT_FAILURE;
 }
