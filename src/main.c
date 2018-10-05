@@ -1,6 +1,6 @@
 
 #include <stdlib.h>
-#include "flamethrower.h"
+#include "secamizer.h"
 
 int main(int argc, char **argv) {
     if (secamizer_init(argc, argv)) {

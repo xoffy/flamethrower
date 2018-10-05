@@ -5,7 +5,7 @@
 #include <math.h> /* round */
 #include <stdio.h> /* sscanf */
 
-#include "flamethrower.h"
+#include "secamizer.h"
 #include "picture.h"
 #include "util.h"
 #include "noise.h"
@@ -18,13 +18,25 @@ double rndm;
 double thrshld;
 int anime = 1;
 
+typedef struct {
+    YCbCrPicture *template;
+    YCbCrPicture *canvas;
+    const char *input;
+    const char *output;
+    double rndm;
+    double thrshld;
+    int frames;
+} SecamizerParameters;
+
+SecamizerParameters params;
+
 int secamizer_init(int argc, char **argv) {
     int idx = 1;
 
     srand(time(NULL));
 
-    rndm = 0.001;
-    thrshld = 0.024;
+    params.rndm = 0.001;
+    params.thrshld = 0.024;
 
     for (idx = 1; idx < argc; idx++) {
         if (strcmp(argv[idx], "-i") == 0) {
