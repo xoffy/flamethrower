@@ -10,9 +10,27 @@
 #include "util.h"
 #include "noise.h"
 
-Secamizer *secamizer_init(int argc, char **argv) {
-    int idx = 1;
+#define DEF_RNDM 0.001
+#define DEF_THRSHLD 0.024
 
+void usage(const char *appname) {
+    printf(
+        "usage: %s [OPTIONS] <SOURCE> <OUTPUT>\n"
+        "\n"
+        "Available options:\n"
+        "\n"
+        "    -r <VALUE>      set randomization factor, default is %g\n"
+        "    -t <VALUE>      set threshold value, default is %g\n"
+        "    -a <COUNT>      set count of frames\n"
+        "    -q              be quiet, do not print anything\n"
+        "\n"
+        "A source can be in JPG or PNG formats. An output is same too.\n",
+        appname, DEF_RNDM, DEF_THRSHLD
+    );
+    exit(0);
+}
+
+Secamizer *secamizer_init(int argc, char **argv) {
     srand(time(NULL));
 
     Secamizer *self = malloc(sizeof(Secamizer));
@@ -22,64 +40,74 @@ Secamizer *secamizer_init(int argc, char **argv) {
     }
 
     // Why? Because I don't mind diversity. There must be either arrows or dots.
-    self->rndm = 0.001;
-    self->thrshld = 0.024;
+    self->rndm = DEF_RNDM;
+    self->thrshld = DEF_THRSHLD;
     self->frames = 1;
 
-    for (idx = 1; idx < argc; idx++) {
-        if (strcmp(argv[idx], "-i") == 0) {
-            if (idx < argc - 1) {
-                self->input_path = argv[++idx];
+    self->input_path = NULL;
+    self->output_path = NULL;
+
+    char catch_argument = '\0';
+    int show_usage = 0;
+
+    for (int i = 1; i < argc; i++) {
+        if (catch_argument != '\0') {
+            switch (catch_argument) {
+            case 'r':
+                sscanf(argv[i], "%lf", &self->rndm);
+                break;
+            case 't':
+                sscanf(argv[i], "%lf", &self->thrshld);
+                break;
+            case 'a':
+                sscanf(argv[i], "%d", &self->frames);
+                break;
+            default:
+                u_error("Unknown option \"%c\".", catch_argument);
+                show_usage = 1;
+                return NULL;
             }
-        } else if (strcmp(argv[idx], "-o") == 0) {
-            if (idx < argc - 1) {
-                self->output_path = argv[++idx];
+            catch_argument = '\0';
+        }
+
+        if (argv[i][0] == '-') {
+            switch (argv[i][1]) {
+            case 'q':
+                u_quiet = 1;
+                break;
+            default:
+                if (i == argc - 1) {
+                    u_error("Unknown switch \"%c\".", argv[i][1]);
+                    show_usage = 1;
+                    break;
+                }
+                catch_argument = argv[i][1];
+                break;
             }
-        } else if (strcmp(argv[idx], "-r") == 0) {
-            if (idx < argc - 1) {
-                sscanf(argv[++idx], "%lf", &self->rndm);
-            }
-        } else if (strcmp(argv[idx], "-t") == 0) {
-            if (idx < argc - 1) {
-                sscanf(argv[++idx], "%lf", &self->thrshld);
-            }
-        } else if (strcmp(argv[idx], "-q") == 0) {
-            u_quiet = 1;
-        } else if (strcmp(argv[idx], "-a") == 0) {
-            if (idx < argc - 1) {
-                sscanf(argv[++idx], "%d", &self->frames);
-            }
-        } else if (strcmp(argv[idx], "-h") == 0) {
-            printf(
-                "usage: %s -i [input] -o [output] [OPTIONS]\n"
-                "\n"
-                "-r [float] -- set random factor (def. %f)\n"
-                "-t [float] -- set threshold (def. %f)\n"
-                "-a [int] -- number of frames\n"
-                "-q -- be quiet\n",
-                argv[0], self->rndm, self->thrshld
-            );
-            return 0;
         } else {
-            u_error("Unknown argument %s.", argv[idx]);
-            return 0;
+            // arguments without hyphen are treated as
+            // input and output paths respectively
+            if (!self->input_path) {
+                self->input_path = argv[i];
+            } else if (!self->output_path) {
+                self->output_path = argv[i];
+            } else {
+                u_error("Can't recognize argument \"%c\"", argv[i]);
+                show_usage = 1;
+                return NULL;
+            }
         }
     }
 
-    if (!self->input_path) {
-        u_error("No input file.");
-        return 0;
-    }
-
-    if (!self->output_path) {
-        u_error("No output file.");
-        return 0;
+    if (show_usage || !self->input_path || !self->output_path) {
+        secamizer_destroy(&self);
+        usage(argv[0]);
     }
 
     self->template = ycbcr_picture_brdg_load(self->input_path);
     if (!self->template) {
         u_error("Can't open picture %s.", self->input_path);
-        return 0;
+        return NULL;
     }
 
     return self;
