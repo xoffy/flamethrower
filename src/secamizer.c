@@ -116,32 +116,26 @@ Secamizer *secamizer_init(int argc, char **argv) {
 int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e);
 
 void secamizer_run(Secamizer *self) {
-    YCbCrPicture *canvas, *overlay, *frame; // *ov_odd, *ov_even;
-    double ar; /* aspect ratio */
-    int vr; /* vertical resolution */
-    int vw, vh; /* virtual width and height */
-    char base[256], out[256];
-    const char *ext;
-    int i;
-
-    canvas = ycbcr_picture_copy(self->template);
-    vr = 448;
-    ar = (double)self->template->width / (double)self->template->height;
-    vw = ar * vr;
-    vh = vr / 2;
-    ycbcr_picture_brdg_resize(&canvas, vw, vh);
+    YCbCrPicture *canvas = ycbcr_picture_copy(self->template);
+    int vertical_resolution = 448;
+    double aspect_ratio = (double)self->template->width / (double)self->template->height;
+    int virtual_width = aspect_ratio * vertical_resolution;
+    int virtual_height = vertical_resolution / 2;
+    ycbcr_picture_brdg_resize(&canvas, virtual_width, virtual_height);
 
     if (!canvas) {
         u_error("critical: no canvas");
         return;
     }
     
-    u_get_file_base(base, self->output_path);
-    ext = u_get_file_ext(self->output_path);
+    char output_base_name[256];
+    char output_full_name[256];
+    u_get_file_base(output_base_name, self->output_path);
+    const char *ext = u_get_file_ext(self->output_path);
     
-    for (i = 0; i < self->frames; i++) {
-        overlay = ycbcr_picture_dummy(vw, vh);
-        frame = ycbcr_picture_copy(self->template);
+    for (int i = 0; i < self->frames; i++) {
+        YCbCrPicture *overlay = ycbcr_picture_dummy(virtual_width, virtual_width);
+        YCbCrPicture *frame = ycbcr_picture_copy(self->template);
 
         for (int y = 0; y < overlay->height; y++) {
             for (int x = 0; x < overlay->width; x++) {
@@ -153,7 +147,7 @@ void secamizer_run(Secamizer *self) {
         ycbcr_picture_brdg_resize(&overlay,
             self->template->width, self->template->height);
         ycbcr_picture_merge(frame, overlay);
-        sprintf(out, "%s.%d.%s", base, i, ext);
+        sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
         ycbcr_picture_brdg_write(frame, out);
         ycbcr_picture_delete(frame);
         ycbcr_picture_delete(overlay);
@@ -170,22 +164,20 @@ void secamizer_destroy(Secamizer **selfp) {
 
 int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e) {
     static int point, ac /* affected component */;
-    int gain, hs /* horizontal step */;
-    double diff, fire, ethrshld;
 
     if (x == 0) {
         point = -1;
         return 1;
     }
     
-    diff = ((0.0
+    double diff = ((0.0
         + ycbcr_picture_get_pixel(canvas, x, y)[0]
         - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
         / 256.0);
-    gain = point == -1 ? MIN_HS * 1.5 : x - point;
-    hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
+    int gain = point == -1 ? MIN_HS * 1.5 : x - point;
+    int hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
     
-    ethrshld = self->thrshld +
+    double ethrshld = self->thrshld +
         (FRAND() * self->thrshld - self->thrshld * 0.5);
     
     if ((diff * FRAND() + self->rndm * FRAND() > ethrshld) && (gain > hs)) {
@@ -197,7 +189,7 @@ int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay,
         return 1;
     }
     
-    fire = (320.0 + FRAND() * 128.0) / (gain + 1.0) - 1.0;
+    double fire = (320.0 + FRAND() * 128.0) / (gain + 1.0) - 1.0;
     if (fire < 0) {
         /* fire is faded */
         point = -1;
