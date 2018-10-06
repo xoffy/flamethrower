@@ -346,11 +346,13 @@ void ycbcr_picture_merge(YCbCrPicture *ycbcr, YCbCrPicture *add) {
 void ycbcr_picture_delete(YCbCrPicture *ycbcr) {
     u_debug("ycbcr_picture_delete(0x%X)...", ycbcr);
 
-    if (ycbcr->data) {
-        free(ycbcr->data);
+    if (ycbcr) {
+        if (ycbcr->data) {
+            free(ycbcr->data);
+        }
+        free(ycbcr);
+        ycbcr = NULL;
     }
-    free(ycbcr);
-    ycbcr = NULL;
 }
 
 YCbCrPicture *ycbcr_picture_brdg_load(const char *path) {
