@@ -68,6 +68,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
                 return NULL;
             }
             catch_argument = '\0';
+            continue;
         }
 
         if (argv[i][0] == '-') {
@@ -92,7 +93,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
             } else if (!self->output_path) {
                 self->output_path = argv[i];
             } else {
-                u_error("Can't recognize argument \"%c\"", argv[i]);
+                u_error("Can't recognize argument \"%s\"", argv[i]);
                 show_usage = 1;
                 return NULL;
             }
@@ -129,12 +130,12 @@ void secamizer_run(Secamizer *self) {
     }
     
     char output_base_name[256];
-    char output_full_name[256];
+    char output_full_name[1024];
     u_get_file_base(output_base_name, self->output_path);
     const char *ext = u_get_file_ext(self->output_path);
     
     for (int i = 0; i < self->frames; i++) {
-        YCbCrPicture *overlay = ycbcr_picture_dummy(virtual_width, virtual_width);
+        YCbCrPicture *overlay = ycbcr_picture_dummy(virtual_width, virtual_height);
         YCbCrPicture *frame = ycbcr_picture_copy(self->template);
 
         for (int y = 0; y < overlay->height; y++) {
@@ -148,7 +149,7 @@ void secamizer_run(Secamizer *self) {
             self->template->width, self->template->height);
         ycbcr_picture_merge(frame, overlay);
         sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
-        ycbcr_picture_brdg_write(frame, out);
+        ycbcr_picture_brdg_write(frame, output_full_name);
         ycbcr_picture_delete(frame);
         ycbcr_picture_delete(overlay);
     }
