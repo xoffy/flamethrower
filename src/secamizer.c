@@ -23,11 +23,75 @@ void usage(const char *appname) {
         "    -t <VALUE>      set threshold value, default is %g\n"
         "    -a <COUNT>      set count of frames\n"
         "    -q              be quiet, do not print anything\n"
+        "    -? -h           show this help\n"
         "\n"
         "A source can be in JPG or PNG formats. An output is same too.\n",
         appname, DEF_RNDM, DEF_THRSHLD
     );
     exit(0);
+}
+
+void parse_arguments(Secamizer *self, int argc, char **argv) {
+    char catch_option = 0;
+
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            if (catch_option) {
+                u_error("Expected argument for option \"%c\".", catch_option);
+                usage(argv[0]);
+            }
+
+            if (argv[i][2] != '\0') {
+                u_error("Bad argument \"%s\"!", argv[i] + 1);
+                usage(argv[0]);
+            }
+
+            switch (argv[i][1]) {
+            case 'q':
+                u_quiet = 1;
+                break;
+            case 'r':
+            case 't':
+            case 'a':
+            case 'p':
+                catch_option = argv[i][1];
+                continue;
+            case 'h':
+            case '?':
+            default:
+                u_error("Unknown option \"%c\".", argv[i][1]);
+                usage(argv[0]);
+            }
+        } else if (catch_option) {
+            switch (catch_option) {
+            case 'r':
+                sscanf(argv[i], "%lf", &self->rndm);
+                break;
+            case 't':
+                sscanf(argv[i], "%lf", &self->thrshld);
+                break;
+            case 'a':
+                sscanf(argv[i], "%d", &self->frames);
+                break;
+            case 'p':
+                sscanf(argv[i], "%d", &self->pass_count);
+                break;
+            }
+            catch_option = 0;
+            continue;
+        } else {
+            // arguments without hyphen are treated as
+            // input and output paths respectively
+            if (!self->input_path) {
+                self->input_path = argv[i];
+            } else if (!self->output_path) {
+                self->output_path = argv[i];
+            } else {
+                u_error("Can't recognize argument \"%s\"", argv[i]);
+                usage(argv[0]);
+            }
+        }
+    }
 }
 
 Secamizer *secamizer_init(int argc, char **argv) {
@@ -43,64 +107,14 @@ Secamizer *secamizer_init(int argc, char **argv) {
     self->rndm = DEF_RNDM;
     self->thrshld = DEF_THRSHLD;
     self->frames = 1;
+    self->pass_count = 1;
 
     self->input_path = NULL;
     self->output_path = NULL;
 
-    char catch_argument = '\0';
-    int show_usage = 0;
+    parse_arguments(self, argc, argv);
 
-    for (int i = 1; i < argc; i++) {
-        if (catch_argument != '\0') {
-            switch (catch_argument) {
-            case 'r':
-                sscanf(argv[i], "%lf", &self->rndm);
-                break;
-            case 't':
-                sscanf(argv[i], "%lf", &self->thrshld);
-                break;
-            case 'a':
-                sscanf(argv[i], "%d", &self->frames);
-                break;
-            default:
-                u_error("Unknown option \"%c\".", catch_argument);
-                show_usage = 1;
-                return NULL;
-            }
-            catch_argument = '\0';
-            continue;
-        }
-
-        if (argv[i][0] == '-') {
-            switch (argv[i][1]) {
-            case 'q':
-                u_quiet = 1;
-                break;
-            default:
-                if (i == argc - 1) {
-                    u_error("Unknown switch \"%c\".", argv[i][1]);
-                    show_usage = 1;
-                    break;
-                }
-                catch_argument = argv[i][1];
-                break;
-            }
-        } else {
-            // arguments without hyphen are treated as
-            // input and output paths respectively
-            if (!self->input_path) {
-                self->input_path = argv[i];
-            } else if (!self->output_path) {
-                self->output_path = argv[i];
-            } else {
-                u_error("Can't recognize argument \"%s\"", argv[i]);
-                show_usage = 1;
-                return NULL;
-            }
-        }
-    }
-
-    if (show_usage || !self->input_path || !self->output_path) {
+    if (!self->input_path || !self->output_path) {
         secamizer_destroy(&self);
         usage(argv[0]);
     }
@@ -117,6 +131,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
 int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e);
 
 void secamizer_run(Secamizer *self) {
+#if 0
     YCbCrPicture *canvas = ycbcr_picture_copy(self->template);
     int vertical_resolution = 448;
     double aspect_ratio = (double)self->template->width / (double)self->template->height;
@@ -128,6 +143,7 @@ void secamizer_run(Secamizer *self) {
         u_error("critical: no canvas");
         return;
     }
+#endif
     
     char output_base_name[256];
     char output_full_name[1024];
@@ -135,16 +151,25 @@ void secamizer_run(Secamizer *self) {
     const char *ext = u_get_file_ext(self->output_path);
     
     for (int i = 0; i < self->frames; i++) {
-        YCbCrPicture *overlay = ycbcr_picture_dummy(virtual_width, virtual_height);
+        YCbCrPicture *overlay = ycbcr_picture_dummy(self->template->width, self->template->height);
         YCbCrPicture *frame = ycbcr_picture_copy(self->template);
 
-        for (int y = 0; y < overlay->height; y++) {
-            for (int x = 0; x < overlay->width; x++) {
-                secamizer_scan(self, canvas, overlay, x, y,
-                    ycbcr_picture_get_pixel(overlay, x, y));
+        for (int j = 0; j < self->pass_count; j++) {
+            for (int y = 0; y < overlay->height; y++) {
+                for (int x = 0; x < overlay->width; x++) {
+                    secamizer_scan(self, self->template, overlay, x, y,
+                        ycbcr_picture_get_pixel(overlay, x, y));
+                }
             }
         }
 
+        ycbcr_picture_merge(frame, overlay);
+        sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
+        ycbcr_picture_brdg_write(frame, output_full_name);
+        ycbcr_picture_delete(frame);
+        ycbcr_picture_delete(overlay);
+
+#if 0
         ycbcr_picture_brdg_resize(&overlay,
             self->template->width, self->template->height);
         ycbcr_picture_merge(frame, overlay);
@@ -152,6 +177,7 @@ void secamizer_run(Secamizer *self) {
         ycbcr_picture_brdg_write(frame, output_full_name);
         ycbcr_picture_delete(frame);
         ycbcr_picture_delete(overlay);
+#endif
     }
 }
 

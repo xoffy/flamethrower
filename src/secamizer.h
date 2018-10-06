@@ -12,6 +12,7 @@ typedef struct {
     double rndm;
     double thrshld;
     int frames;
+    int pass_count;
 } Secamizer;
 
 Secamizer *secamizer_init(int argc, char **argv);
