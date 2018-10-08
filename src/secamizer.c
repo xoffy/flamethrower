@@ -4,6 +4,7 @@
 #include <string.h> /* strcmp */
 #include <math.h> /* round */
 #include <stdio.h> /* sscanf */
+#include <stdbool.h>
 
 #include "secamizer.h"
 #include "picture.h"
@@ -154,7 +155,6 @@ void secamizer_run(Secamizer *self) {
     int height = self->source->height;
     
     for (int i = 0; i < self->frames; i++) {
-        #if 0
         YCCPicture *overlay = ycc_new(width, height);
         ycc_reset(overlay);
         YCCPicture *frame = ycc_new(width, height);
@@ -177,14 +177,7 @@ void secamizer_run(Secamizer *self) {
         }
         ycc_delete(&frame);
         ycc_delete(&overlay);
-        #endif
 
-        if (self->pass_count) {
-            ycc_save_picture(self->source, self->output_path);
-        } else {
-            sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
-            ycc_save_picture(self->source, output_full_name);
-        }
 #if 0
         ycbcr_picture_brdg_resize(&overlay,
             self->template->width, self->template->height);
@@ -208,56 +201,49 @@ void secamizer_destroy(Secamizer **selfp) {
 #define MIN_HS  12  /* minimal horizontal step */
 
 void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y) {
-#if 0
-    static int point, ac /* affected component */;
+    static int point;
+    static bool is_blue;
 
     if (x == 0) {
         point = -1;
-        return 1;
+        return;
     }
     
-    double diff = ((0.0
-        + ycbcr_picture_get_pixel(canvas, x, y)[0]
-        - ycbcr_picture_get_pixel(canvas, x - 1, y)[0])
-        / 256.0);
+    uint8_t *luma = self->source->luma
+        + ((y * 2) * self->source->width + (x * 4));
+
+    double a = ((double)luma[0] + (double)luma[1]) / 2.0;
+    double b = ((double)luma[2] + (double)luma[3]) / 2.0;
+    double delta = (a - b) / 256.0;
     int gain = point == -1 ? MIN_HS * 1.5 : x - point;
     int hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
     
     double ethrshld = self->thrshld +
         (FRAND() * self->thrshld - self->thrshld * 0.5);
     
-    if ((diff * FRAND() + self->rndm * FRAND() > ethrshld) && (gain > hs)) {
+    if ((delta * FRAND() + self->rndm * FRAND() > ethrshld) && (gain > hs)) {
         point = x;
-        ac = 2 - (FRAND() <= 0.25); /* Cb с вер. 0.25 */
+        is_blue = (FRAND() <= 0.25); /* Cb с вер. 0.25 */
     }
     
     if (point < 0) {
-        return 1;
+        return;
     }
     
     double fire = (320.0 + FRAND() * 128.0) / (gain + 1.0) - 1.0;
     if (fire < 0) {
         /* fire is faded */
         point = -1;
-        return 1;
+        return;
     }
-    
-    int idx = y * overlay->width 
+
+    int chroma_idx = y * (overlay->width / 4) + x;
 
     if (is_blue) {
-
+        overlay->cb[chroma_idx] = COLOR_CLAMP(overlay->cb[chroma_idx] + fire);
+    } else {
+        overlay->cr[chroma_idx] = COLOR_CLAMP(overlay->cr[chroma_idx] + fire);
     }
-
-    e[ac] = clamp_comp(e[ac] + fire);
-#if 0
-    if (y < (overlay->width - 1)) {
-        lower = ycbcr_picture_get_pixel(overlay, x, y + 1);
-        lower[ac] = clamp_comp(lower[ac] + fire);
-    }
-#endif
-    
-    return 1;
-#endif
 }
 
 
