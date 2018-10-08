@@ -84,10 +84,10 @@ YCCPicture *ycc_load_picture(const char *path) {
     int chroma_height = (height / 2);
 
     // Now it's time for chrominance.
-    for (int y = 0; y < chroma_height; y++) {
-        for (int x = 0; x < chroma_width; x++) {
-            int rgb_idx = 3 * ((y * 2) * original_width + (x * 4));
-            int chroma_idx = y * chroma_width + x;
+    for (int cy = 0; cy < chroma_height; cy++) {
+        for (int cx = 0; cx < chroma_width; cx++) {
+            int rgb_idx = 3 * ((cy * 2) * original_width + (cx * 4));
+            int chroma_idx = cy * chroma_width + cx;
             self->cb[chroma_idx] = COLOR_CLAMP(128.0
                 - (37.9450 * rgb[rgb_idx + 0] / 256.0)
                 - (74.4940 * rgb[rgb_idx + 1] / 256.0)
@@ -189,9 +189,9 @@ bool ycc_merge(YCCPicture *base, YCCPicture *add) {
     int chroma_width = (base->width / 4);
     int chroma_height = (base->height / 2);
 
-    for (int y = 0; y < chroma_height; y++) {
-        for (int x = 0; x < chroma_width; x++) {
-            int chroma_idx = chroma_width * y + x;
+    for (int cy = 0; cy < chroma_height; cy++) {
+        for (int cx = 0; cx < chroma_width; cx++) {
+            int chroma_idx = chroma_width * cy + cx;
             base->cb[chroma_idx] = COLOR_CLAMP(base->cb[chroma_idx]
                 + add->cb[chroma_idx] - 128);
             base->cr[chroma_idx] = COLOR_CLAMP(base->cr[chroma_idx]

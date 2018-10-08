@@ -14,6 +14,8 @@
 #define DEF_RNDM 0.001
 #define DEF_THRSHLD 0.024
 
+void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy);
+
 void usage(const char *appname) {
     printf(
         "usage: %s [OPTIONS] <SOURCE> <OUTPUT>\n"
@@ -130,8 +132,6 @@ Secamizer *secamizer_init(int argc, char **argv) {
     return self;
 }
 
-void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y);
-
 void secamizer_run(Secamizer *self) {
     char output_base_name[256];
     char output_full_name[1024];
@@ -145,10 +145,10 @@ void secamizer_run(Secamizer *self) {
         YCCPicture *frame = ycc_new(width, height);
         ycc_copy(frame, self->source);
 
-        for (int j = 0; j < self->pass_count; j++) {
-            for (int y = 0; y < height / 2; y++) {
-                for (int x = 0; x < width / 4; x++) {
-                    secamizer_scan(self, frame, x, y);
+        for (int pass = 0; pass < self->pass_count; pass++) {
+            for (int cy = 0; cy < height / 2; cy++) {
+                for (int cx = 0; cx < width / 4; cx++) {
+                    secamizer_scan(self, frame, cx, cy);
                 }
             }
         }
@@ -159,6 +159,7 @@ void secamizer_run(Secamizer *self) {
             sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
             ycc_save_picture(frame, output_full_name);
         }
+        
         ycc_delete(&frame);
     }
 }
@@ -173,28 +174,28 @@ void secamizer_destroy(Secamizer **selfp) {
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y) {
+void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
     static int point;
     static bool is_blue;
 
-    if (x == 0) {
+    if (cx == 0) {
         point = -1;
         return;
     }
     
-    uint8_t *luma = frame->luma + ((y * 2) * frame->width + (x * 4));
+    uint8_t *luma = frame->luma + ((cy * 2) * frame->width + (cx * 4));
 
     double a = ((double)luma[0] + (double)luma[1]) / 2.0;
     double b = ((double)luma[2] + (double)luma[3]) / 2.0;
     double delta = (a - b) / 256.0;
-    int gain = point == -1 ? MIN_HS * 1.5 : x - point;
+    int gain = point == -1 ? MIN_HS * 1.5 : cx - point;
     int hs = MIN_HS + FRAND() * (MIN_HS * 10.5);
     
     double ethrshld = self->thrshld +
         (FRAND() * self->thrshld - self->thrshld * 0.5);
     
     if ((delta * FRAND() + self->rndm * FRAND() > ethrshld) && (gain > hs)) {
-        point = x;
+        point = cx;
         is_blue = (FRAND() <= 0.25); /* Cb с вер. 0.25 */
     }
     
@@ -209,7 +210,7 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y) {
         return;
     }
 
-    int chroma_idx = y * (frame->width / 4) + x;
+    int chroma_idx = cy * (frame->width / 4) + cx;
 
     if (is_blue) {
         frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx] + fire);
