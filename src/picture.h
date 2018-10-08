@@ -67,5 +67,7 @@ void ycc_copy(YCCPicture *dst, const YCCPicture *src);
 bool ycc_merge(YCCPicture *base, YCCPicture *add);
 void ycc_delete(YCCPicture **selfp);
 
+#define COLOR_CLAMP(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
+
 #endif
 

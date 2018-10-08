@@ -454,7 +454,7 @@ YCCPicture *ycc_load_picture(const char *path) {
         for (int x = 0; x < width; x++) {
             int rgb_idx = 3 * (y * width + x);
             int luma_idx = y * width + x;
-            self->luma[luma_idx] = clamp_comp(16.0
+            self->luma[luma_idx] = COLOR_CLAMP(16.0
                 + (65.7380 * rgb[rgb_idx + 0] / 256.0)
                 + (129.057 * rgb[rgb_idx + 1] / 256.0)
                 + (25.0640 * rgb[rgb_idx + 2] / 256.0));
@@ -469,11 +469,11 @@ YCCPicture *ycc_load_picture(const char *path) {
         for (int x = 0; x < chroma_width; x++) {
             int rgb_idx = 3 * (y * width + (x * 4));
             int chroma_idx = y * chroma_width + x;
-            self->cb[chroma_idx] = clamp_comp(128.0
+            self->cb[chroma_idx] = COLOR_CLAMP(128.0
                 - (37.9450 * rgb[rgb_idx + 0] / 256.0)
                 - (74.4940 * rgb[rgb_idx + 1] / 256.0)
                 + (112.439 * rgb[rgb_idx + 2] / 256.0));
-            self->cr[chroma_idx] = clamp_comp(128.0
+            self->cr[chroma_idx] = COLOR_CLAMP(128.0
                 + (112.439 * rgb[rgb_idx + 0] / 256.0)
                 - (94.1540 * rgb[rgb_idx + 1] / 256.0)
                 - (18.2850 * rgb[rgb_idx + 2] / 256.0));
@@ -497,16 +497,16 @@ bool ycc_save_picture(const YCCPicture *self, const char *path) {
             int idx = y * 3 * self->width + x * 3;
             int luma_idx = y * self->width + x;
             int chroma_idx = (y * self->width / 2) + (x / 4);
-            rgb[idx + 0] = clamp_comp(0.0
+            rgb[idx + 0] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 + (408.583 * self->cr[chroma_idx] / 256.0)
                 - 222.921);
-            rgb[idx + 1] = clamp_comp(0.0
+            rgb[idx + 1] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 - (100.291 * self->cb[chroma_idx] / 256.0)
                 - (208.120 * self->cr[chroma_idx] / 256.0)
                 + 135.576);
-            rgb[idx + 2] = clamp_comp(0.0
+            rgb[idx + 2] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 + (516.412 * self->cb[chroma_idx] / 256.0)
                 - 276.836);
@@ -553,8 +553,6 @@ void ycc_copy(YCCPicture *dst, const YCCPicture *src) {
     dst->height = dst->height;
 }
 
-// #define PIXEL(p, x, y, c) (p->width * (c) * (y) + (c) * (x))
-
 bool ycc_merge(YCCPicture *base, YCCPicture *add) {
     if (base->width != add->width || base->height != add->height) {
         u_error("[ycbcr_merge] Only pictures of the same size can be merged!");
@@ -564,7 +562,7 @@ bool ycc_merge(YCCPicture *base, YCCPicture *add) {
     for (int y = 0; y < base->height; y++) {
         for (int x = 0; x < base->width; x++) {
             int luma_idx = base->width * y + x;
-            base->luma[luma_idx] = clamp_comp(base->luma[luma_idx]
+            base->luma[luma_idx] = COLOR_CLAMP(base->luma[luma_idx]
                 + add->luma[luma_idx] - 128);
         }
     }
@@ -575,9 +573,9 @@ bool ycc_merge(YCCPicture *base, YCCPicture *add) {
     for (int y = 0; y < chroma_height; y++) {
         for (int x = 0; x < chroma_width; x++) {
             int chroma_idx = chroma_width * y + x;
-            base->cb[chroma_idx] = clamp_comp(base->cb[chroma_idx]
+            base->cb[chroma_idx] = COLOR_CLAMP(base->cb[chroma_idx]
                 + add->cb[chroma_idx] - 128);
-            base->cr[chroma_idx] = clamp_comp(base->cr[chroma_idx]
+            base->cr[chroma_idx] = COLOR_CLAMP(base->cr[chroma_idx]
                 + add->cr[chroma_idx] - 128);
         }
     }
