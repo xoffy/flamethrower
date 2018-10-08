@@ -133,20 +133,6 @@ Secamizer *secamizer_init(int argc, char **argv) {
 void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y);
 
 void secamizer_run(Secamizer *self) {
-#if 0
-    YCbCrPicture *canvas = ycbcr_picture_copy(self->template);
-    int vertical_resolution = 448;
-    double aspect_ratio = (double)self->template->width / (double)self->template->height;
-    int virtual_width = aspect_ratio * vertical_resolution;
-    int virtual_height = vertical_resolution / 2;
-    ycbcr_picture_brdg_resize(&canvas, virtual_width, virtual_height);
-
-    if (!canvas) {
-        u_error("critical: no canvas");
-        return;
-    }
-#endif
-    
     char output_base_name[256];
     char output_full_name[1024];
     u_get_file_base(output_base_name, self->output_path);
@@ -174,16 +160,6 @@ void secamizer_run(Secamizer *self) {
             ycc_save_picture(frame, output_full_name);
         }
         ycc_delete(&frame);
-
-#if 0
-        ycbcr_picture_brdg_resize(&overlay,
-            self->template->width, self->template->height);
-        ycbcr_picture_merge(frame, overlay);
-        sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
-        ycbcr_picture_brdg_write(frame, output_full_name);
-        ycbcr_picture_delete(frame);
-        ycbcr_picture_delete(overlay);
-#endif
     }
 }
 
@@ -241,35 +217,3 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y) {
         frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx] + fire);
     }
 }
-
-
-#if 0
-int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
-    if ((x == 0) && (y % 2 == 0)) {
-        noise_init();
-    }
-    
-    c[0] = clamp_comp(noise(x));
-    return 1;
-}
-
-void noise_test() {
-    YCbCrPicture *ycbcr;
-    
-    u_debug("noise_test()...");
-    
-    noise_init();
-    noise_scale = 0.12;
-    noise_amplitude = 255.0;
-    
-    ycbcr = ycbcr_picture_dummy(256, 64);
-    ycbcr_picture_scan(ycbcr, noise_scan);
-    ycbcr_picture_brdg_write(ycbcr, "noise.jpg");
-}
-
-
-
-
-
-
-#endif
