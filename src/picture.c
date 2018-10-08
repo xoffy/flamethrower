@@ -431,21 +431,16 @@ void ycc_reset(YCCPicture *self) {
 }
 
 YCCPicture *ycc_load_picture(const char *path) {
-    int width;
-    int height;
-    uint8_t *rgb = stbi_load(path, &width, &height, NULL, 3);
+    int original_width;
+    int original_height;
+    uint8_t *rgb = stbi_load(path, &original_width, &original_height, NULL, 3);
     if (!rgb) {
         u_error("[ycbcr_load_picture] Failed to load picture with STBI: %s", path);
         return NULL;
     }
 
-    if (width % 4 != 0) {
-        width = width - (width % 4);
-    }
-
-    if (height % 2 != 0) {
-        height = height - (height % 2);
-    }
+    int width = original_width - (original_width % 4);
+    int height = original_height - (original_height % 2);
 
     YCCPicture *self = ycc_new(width, height);
     if (!self) {
@@ -455,7 +450,7 @@ YCCPicture *ycc_load_picture(const char *path) {
     // Initialize luminance information
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            int rgb_idx = 3 * (y * width + x);
+            int rgb_idx = 3 * (y * original_width + x);
             int luma_idx = y * width + x;
             self->luma[luma_idx] = COLOR_CLAMP(16.0
                 + (65.7380 * rgb[rgb_idx + 0] / 256.0)
@@ -470,7 +465,7 @@ YCCPicture *ycc_load_picture(const char *path) {
     // Now it's time for chrominance.
     for (int y = 0; y < chroma_height; y++) {
         for (int x = 0; x < chroma_width; x++) {
-            int rgb_idx = 3 * ((y * 2) * width + (x * 4));
+            int rgb_idx = 3 * ((y * 2) * original_width + (x * 4));
             int chroma_idx = y * chroma_width + x;
             self->cb[chroma_idx] = COLOR_CLAMP(128.0
                 - (37.9450 * rgb[rgb_idx + 0] / 256.0)
