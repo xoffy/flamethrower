@@ -167,7 +167,7 @@ void secamizer_run(Secamizer *self) {
             }
         }
 
-        if (self->pass_count) {
+        if (self->frames == 1) {
             ycc_save_picture(frame, self->output_path);
         } else {
             sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
