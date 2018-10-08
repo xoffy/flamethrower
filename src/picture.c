@@ -404,12 +404,15 @@ YCCPicture *ycc_new(int width, int height) {
         return NULL;
     }
 
-    self->width = width - (width % 4);
-    self->height = height - (height % 2);
+    self->width = width;
+    self->height = height;
 
-    self->luma = malloc(sizeof(uint8_t) * self->width * self->height);
-    self->cb = malloc(sizeof(uint8_t) * (self->width / 4) * (self->width / 2) * 2);
-    self->cr = malloc(sizeof(uint8_t) * (self->width / 4) * (self->width / 2) * 2);
+    size_t luma_size = self->width * self->height;
+    size_t chroma_size = (self->width / 4) * (self->height / 2);
+
+    self->luma = malloc(sizeof(uint8_t) * luma_size);
+    self->cb = malloc(sizeof(uint8_t) * chroma_size);
+    self->cr = malloc(sizeof(uint8_t) * chroma_size);
 
     if (!self->luma || !self->cb || !self->cr) {
         free(self);
@@ -420,8 +423,8 @@ YCCPicture *ycc_new(int width, int height) {
 }
 
 void ycc_reset(YCCPicture *self) {
-    int luma_size = self->width * self->height;
-    int chroma_size = (self->width / 4) * (self->height / 2);
+    size_t luma_size = self->width * self->height;
+    size_t chroma_size = (self->width / 4) * (self->height / 2);
     memset(self->luma, 128, luma_size);
     memset(self->cb, 128, chroma_size);
     memset(self->cr, 128, chroma_size);
@@ -467,7 +470,7 @@ YCCPicture *ycc_load_picture(const char *path) {
     // Now it's time for chrominance.
     for (int y = 0; y < chroma_height; y++) {
         for (int x = 0; x < chroma_width; x++) {
-            int rgb_idx = 3 * (y * width + (x * 4));
+            int rgb_idx = 3 * ((y * 2) * width + (x * 4));
             int chroma_idx = y * chroma_width + x;
             self->cb[chroma_idx] = COLOR_CLAMP(128.0
                 - (37.9450 * rgb[rgb_idx + 0] / 256.0)
@@ -494,19 +497,19 @@ bool ycc_save_picture(const YCCPicture *self, const char *path) {
 
     for (int y = 0; y < self->height; y++) {
         for (int x = 0; x < self->width; x++) {
-            int idx = y * 3 * self->width + x * 3;
+            int rgb_idx = y * 3 * self->width + x * 3;
             int luma_idx = y * self->width + x;
-            int chroma_idx = (y * self->width / 2) + (x / 4);
-            rgb[idx + 0] = COLOR_CLAMP(0.0
+            int chroma_idx = (y / 2) * (self->width / 4) + (x / 4);
+            rgb[rgb_idx + 0] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 + (408.583 * self->cr[chroma_idx] / 256.0)
                 - 222.921);
-            rgb[idx + 1] = COLOR_CLAMP(0.0
+            rgb[rgb_idx + 1] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 - (100.291 * self->cb[chroma_idx] / 256.0)
                 - (208.120 * self->cr[chroma_idx] / 256.0)
                 + 135.576);
-            rgb[idx + 2] = COLOR_CLAMP(0.0
+            rgb[rgb_idx + 2] = COLOR_CLAMP(0.0
                 + (298.082 * self->luma[luma_idx] / 256.0)
                 + (516.412 * self->cb[chroma_idx] / 256.0)
                 - 276.836);
