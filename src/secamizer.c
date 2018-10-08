@@ -129,7 +129,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
     return self;
 }
 
-void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y);
+void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y);
 
 void secamizer_run(Secamizer *self) {
 #if 0
@@ -155,20 +155,17 @@ void secamizer_run(Secamizer *self) {
     int height = self->source->height;
     
     for (int i = 0; i < self->frames; i++) {
-        YCCPicture *overlay = ycc_new(width, height);
-        ycc_reset(overlay);
         YCCPicture *frame = ycc_new(width, height);
         ycc_copy(frame, self->source);
 
         for (int j = 0; j < self->pass_count; j++) {
             for (int y = 0; y < height / 2; y++) {
                 for (int x = 0; x < width / 4; x++) {
-                    secamizer_scan(self, overlay, x, y);
+                    secamizer_scan(self, frame, x, y);
                 }
             }
         }
 
-        ycc_merge(frame, overlay);
         if (self->pass_count) {
             ycc_save_picture(frame, self->output_path);
         } else {
@@ -176,7 +173,6 @@ void secamizer_run(Secamizer *self) {
             ycc_save_picture(frame, output_full_name);
         }
         ycc_delete(&frame);
-        ycc_delete(&overlay);
 
 #if 0
         ycbcr_picture_brdg_resize(&overlay,
@@ -200,7 +196,7 @@ void secamizer_destroy(Secamizer **selfp) {
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y) {
+void secamizer_scan(Secamizer *self, YCCPicture *frame, int x, int y) {
     static int point;
     static bool is_blue;
 
@@ -209,8 +205,7 @@ void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y) {
         return;
     }
     
-    uint8_t *luma = self->source->luma
-        + ((y * 2) * self->source->width + (x * 4));
+    uint8_t *luma = frame->luma + ((y * 2) * frame->width + (x * 4));
 
     double a = ((double)luma[0] + (double)luma[1]) / 2.0;
     double b = ((double)luma[2] + (double)luma[3]) / 2.0;
@@ -237,12 +232,12 @@ void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y) {
         return;
     }
 
-    int chroma_idx = y * (overlay->width / 4) + x;
+    int chroma_idx = y * (frame->width / 4) + x;
 
     if (is_blue) {
-        overlay->cb[chroma_idx] = COLOR_CLAMP(overlay->cb[chroma_idx] + fire);
+        frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx] + fire);
     } else {
-        overlay->cr[chroma_idx] = COLOR_CLAMP(overlay->cr[chroma_idx] + fire);
+        frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx] + fire);
     }
 }
 
