@@ -5,8 +5,7 @@
 #include "picture.h"
 
 typedef struct {
-    YCbCrPicture *template;
-    YCbCrPicture *canvas;
+    YCCPicture *source;
     const char *input_path;
     const char *output_path;
     double rndm;

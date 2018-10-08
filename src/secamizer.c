@@ -119,8 +119,8 @@ Secamizer *secamizer_init(int argc, char **argv) {
         usage(argv[0]);
     }
 
-    self->template = ycbcr_picture_brdg_load(self->input_path);
-    if (!self->template) {
+    self->source = ycc_load_picture(self->input_path);
+    if (!self->source) {
         u_error("Can't open picture %s.", self->input_path);
         return NULL;
     }
@@ -128,7 +128,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
     return self;
 }
 
-int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e);
+void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y);
 
 void secamizer_run(Secamizer *self) {
 #if 0
@@ -149,26 +149,42 @@ void secamizer_run(Secamizer *self) {
     char output_full_name[1024];
     u_get_file_base(output_base_name, self->output_path);
     const char *ext = u_get_file_ext(self->output_path);
+
+    int width = self->source->width;
+    int height = self->source->height;
     
     for (int i = 0; i < self->frames; i++) {
-        YCbCrPicture *overlay = ycbcr_picture_dummy(self->template->width, self->template->height);
-        YCbCrPicture *frame = ycbcr_picture_copy(self->template);
+        #if 0
+        YCCPicture *overlay = ycc_new(width, height);
+        ycc_reset(overlay);
+        YCCPicture *frame = ycc_new(width, height);
+        ycc_copy(frame, self->source);
 
         for (int j = 0; j < self->pass_count; j++) {
-            for (int y = 0; y < overlay->height; y++) {
-                for (int x = 0; x < overlay->width; x++) {
-                    secamizer_scan(self, self->template, overlay, x, y,
-                        ycbcr_picture_get_pixel(overlay, x, y));
+            for (int y = 0; y < height / 2; y++) {
+                for (int x = 0; x < width / 4; x++) {
+                    secamizer_scan(self, overlay, x, y);
                 }
             }
         }
 
-        ycbcr_picture_merge(frame, overlay);
-        sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
-        ycbcr_picture_brdg_write(frame, output_full_name);
-        ycbcr_picture_delete(frame);
-        ycbcr_picture_delete(overlay);
+        ycc_merge(frame, overlay);
+        if (self->pass_count) {
+            ycc_save_picture(frame, self->output_path);
+        } else {
+            sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
+            ycc_save_picture(frame, output_full_name);
+        }
+        ycc_delete(&frame);
+        ycc_delete(&overlay);
+        #endif
 
+        if (self->pass_count) {
+            ycc_save_picture(self->source, self->output_path);
+        } else {
+            sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
+            ycc_save_picture(self->source, output_full_name);
+        }
 #if 0
         ycbcr_picture_brdg_resize(&overlay,
             self->template->width, self->template->height);
@@ -183,13 +199,16 @@ void secamizer_run(Secamizer *self) {
 
 void secamizer_destroy(Secamizer **selfp) {
     Secamizer *self = *selfp;
-    ycbcr_picture_delete(self->template);
+    if (self->source) {
+        ycc_delete(&self->source);
+    }
     *selfp = NULL;
 }
 
 #define MIN_HS  12  /* minimal horizontal step */
 
-int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay, int x, int y, unsigned char *e) {
+void secamizer_scan(Secamizer *self, YCCPicture *overlay, int x, int y) {
+#if 0
     static int point, ac /* affected component */;
 
     if (x == 0) {
@@ -223,6 +242,12 @@ int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay,
         return 1;
     }
     
+    int idx = y * overlay->width 
+
+    if (is_blue) {
+
+    }
+
     e[ac] = clamp_comp(e[ac] + fire);
 #if 0
     if (y < (overlay->width - 1)) {
@@ -232,10 +257,11 @@ int secamizer_scan(Secamizer *self, YCbCrPicture *canvas, YCbCrPicture *overlay,
 #endif
     
     return 1;
+#endif
 }
 
 
-
+#if 0
 int noise_scan(YCbCrPicture *ycbcr, int x, int y, unsigned char *c) {
     if ((x == 0) && (y % 2 == 0)) {
         noise_init();
@@ -264,4 +290,4 @@ void noise_test() {
 
 
 
-
+#endif
