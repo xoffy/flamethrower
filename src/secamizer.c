@@ -59,6 +59,7 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
                 continue;
             case 'h':
             case '?':
+                usage(argv[0]);
             default:
                 u_error("Unknown option \"%c\".", argv[i][1]);
                 usage(argv[0]);
