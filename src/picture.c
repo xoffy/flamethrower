@@ -104,6 +104,22 @@ YCCPicture *ycc_load_picture(const char *path) {
     return self;
 }
 
+void ycbcr_to_rgb(uint8_t *dest, uint8_t luma, uint8_t cb, uint8_t cr) {
+    dest[0] = COLOR_CLAMP(0.0
+        + (298.082 * luma / 256.0)
+        + (408.583 * cr / 256.0)
+        - 222.921);
+    dest[1] = COLOR_CLAMP(0.0
+        + (298.082 * luma / 256.0)
+        - (100.291 * cb / 256.0)
+        - (208.120 * cr / 256.0)
+        + 135.576);
+    dest[2] = COLOR_CLAMP(0.0
+        + (298.082 * luma / 256.0)
+        + (516.412 * cb / 256.0)
+        - 276.836);
+}
+
 bool ycc_save_picture(const YCCPicture *self, const char *path) {
     uint8_t *rgb = malloc(sizeof(uint8_t) * self->width * self->height * 3);
     if (!rgb) {
@@ -111,26 +127,46 @@ bool ycc_save_picture(const YCCPicture *self, const char *path) {
         return false;
     }
 
-    for (int y = 0; y < self->height; y++) {
+    uint8_t *delay = malloc(sizeof(uint8_t) * self->width * 2);
+    if (!delay) {
+        u_error("ycbcr_save_picture: failed to allocate memory for delay line!");
+        return false;
+    }
+
+    for (int y = 0; y < self->height; y += 2) {
         for (int x = 0; x < self->width; x++) {
             int rgb_idx = y * 3 * self->width + x * 3;
             int luma_idx = y * self->width + x;
             int chroma_idx = (y / 2) * (self->width / 4) + (x / 4);
-            rgb[rgb_idx + 0] = COLOR_CLAMP(0.0
-                + (298.082 * self->luma[luma_idx] / 256.0)
-                + (408.583 * self->cr[chroma_idx] / 256.0)
-                - 222.921);
-            rgb[rgb_idx + 1] = COLOR_CLAMP(0.0
-                + (298.082 * self->luma[luma_idx] / 256.0)
-                - (100.291 * self->cb[chroma_idx] / 256.0)
-                - (208.120 * self->cr[chroma_idx] / 256.0)
-                + 135.576);
-            rgb[rgb_idx + 2] = COLOR_CLAMP(0.0
-                + (298.082 * self->luma[luma_idx] / 256.0)
-                + (516.412 * self->cb[chroma_idx] / 256.0)
-                - 276.836);
+
+            //
+            // horizontal chroma interpolation
+            //
+            double t = (double)(x % 4) / 4.0;
+            uint8_t cb = LERP(self->cb[chroma_idx], self->cb[chroma_idx + 1], t);
+            uint8_t cr = LERP(self->cr[chroma_idx], self->cr[chroma_idx + 1], t);
+            ycbcr_to_rgb(&rgb[rgb_idx], self->luma[luma_idx], cb, cr);
+
+            //
+            // vertical chroma interpolation
+            //
+            if (y > 0) {
+                int rgb_uidx = rgb_idx - (self->width * 3);
+                int luma_uidx = luma_idx - self->width;
+                uint8_t dcb = LERP(delay[x], cb, 0.5);
+                uint8_t dcr = LERP(delay[x + self->width], cr, 0.5);
+                ycbcr_to_rgb(&rgb[rgb_uidx], self->luma[luma_uidx], dcb, dcr);
+            }
+            
+            //
+            // memorize odd line chroma
+            //
+            delay[x] = cb;
+            delay[x + self->width] = cr;
         }
     }
+
+    free(delay);
 
     const char *ext = u_get_file_ext(path);
     bool rc = false;
