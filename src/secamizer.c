@@ -26,6 +26,7 @@ void usage(const char *appname) {
         "    -t <VALUE>      set threshold value, default is %g\n"
         "    -a <COUNT>      set count of frames\n"
         "    -q              be quiet, do not print anything\n"
+        "    -R              force 480p\n"
         "    -? -h           show this help\n"
         "\n"
         "A source can be in JPG or PNG formats. An output is same too.\n",
@@ -52,6 +53,9 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
             switch (argv[i][1]) {
             case 'q':
                 u_quiet = 1;
+                break;
+            case 'R':
+                self->force_480 = true;
                 break;
             case 'r':
             case 't':
@@ -112,6 +116,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
     self->thrshld = DEF_THRSHLD;
     self->frames = 1;
     self->pass_count = 1;
+    self->force_480 = false;
 
     self->input_path = NULL;
     self->output_path = NULL;
@@ -123,7 +128,8 @@ Secamizer *secamizer_init(int argc, char **argv) {
         usage(argv[0]);
     }
 
-    self->source = ycc_load_picture(self->input_path);
+    self->source = ycc_load_picture(self->input_path,
+        self->force_480 ? 480 : -1);
     if (!self->source) {
         u_error("Can't open picture %s.", self->input_path);
         return NULL;

@@ -2,6 +2,7 @@
 #ifndef __FLAMETHROWER_H_
 #define __FLAMETHROWER_H_
 
+#include <stdbool.h>
 #include "picture.h"
 
 typedef struct {
@@ -12,6 +13,7 @@ typedef struct {
     double thrshld;
     int frames;
     int pass_count;
+    bool force_480;
 } Secamizer;
 
 Secamizer *secamizer_init(int argc, char **argv);

@@ -6,6 +6,8 @@
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
 
 #include "picture.h"
 #include "util.h"
@@ -51,13 +53,32 @@ void ycc_reset(YCCPicture *self) {
     memset(self->cr, 128, chroma_size);
 }
 
-YCCPicture *ycc_load_picture(const char *path) {
+YCCPicture *ycc_load_picture(const char *path, int desired_height) {
     int original_width;
     int original_height;
     uint8_t *rgb = stbi_load(path, &original_width, &original_height, NULL, 3);
     if (!rgb) {
         u_error("[ycbcr_load_picture] Failed to load picture with STBI: %s", path);
         return NULL;
+    }
+
+    if (desired_height > 0) {
+        double aspect_ratio = (double)original_width / (double)original_height;
+        int desired_width = desired_height * aspect_ratio;
+        uint8_t *resized_rgb = malloc(sizeof(uint8_t)
+            * desired_width * desired_height * 3);
+        int rc = stbir_resize_uint8(rgb, original_width, original_height, 0,
+            resized_rgb, desired_width, desired_height, 0, 3);
+        if (!rc) {
+            free(resized_rgb);
+            free(rgb);
+            return NULL;
+        }
+
+        original_width = desired_width;
+        original_height = desired_height;
+        free(rgb);
+        rgb = resized_rgb;
     }
 
     int width = original_width - (original_width % 4);
