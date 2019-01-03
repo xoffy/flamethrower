@@ -111,7 +111,6 @@ Secamizer *secamizer_init(int argc, char **argv) {
         return NULL;
     }
 
-    // Why? Because I don't mind diversity. There must be either arrows or dots.
     self->rndm = DEF_RNDM;
     self->thrshld = DEF_THRSHLD;
     self->frames = 1;
