@@ -139,11 +139,6 @@ Secamizer *secamizer_init(int argc, char **argv) {
 }
 
 void secamizer_run(Secamizer *self) {
-    char output_base_name[256];
-    char output_full_name[1024];
-    u_get_file_base(output_base_name, self->output_path);
-    const char *ext = u_get_file_ext(self->output_path);
-
     int width = self->source->width;
     int height = self->source->height;
     
@@ -159,11 +154,16 @@ void secamizer_run(Secamizer *self) {
             }
         }
 
-        if (self->frames == 1) {
-            ycc_save_picture(frame, self->output_path);
-        } else {
+        if (self->frames > 1) {
+            char output_base_name[256];
+            char output_full_name[1024];
+            const char *ext = u_get_file_ext(self->output_path);
+
+            u_get_file_base(output_base_name, self->output_path);
             sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
             ycc_save_picture(frame, output_full_name);
+        } else {
+            ycc_save_picture(frame, self->output_path);
         }
         
         ycc_delete(&frame);
