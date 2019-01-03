@@ -18,7 +18,7 @@ typedef struct {
 YCCPicture *ycc_new(int width, int height);
 void ycc_reset(YCCPicture *self);
 YCCPicture *ycc_load_picture(const char *path, int desired_height);
-bool ycc_save_picture(const YCCPicture *self, const char *path);
+bool ycc_save_picture(const YCCPicture *self, const char *path, const char *fext);
 void ycc_copy(YCCPicture *dst, const YCCPicture *src);
 bool ycc_merge(YCCPicture *base, YCCPicture *add);
 void ycc_delete(YCCPicture **selfp);

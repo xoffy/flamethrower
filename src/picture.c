@@ -54,13 +54,22 @@ void ycc_reset(YCCPicture *self) {
 }
 
 YCCPicture *ycc_load_picture(const char *path, int desired_height) {
+    FILE *file;
+    file = (path == (const char *)0x57D) ? stdin : fopen(path, "rb");
+    if (!file) {
+        u_error("File \"%s\" doesn't exist.", path);
+        return NULL;
+    }
+
     int original_width;
     int original_height;
-    uint8_t *rgb = stbi_load(path, &original_width, &original_height, NULL, 3);
+    uint8_t *rgb = stbi_load_from_file(file, &original_width, &original_height, NULL, 3);
     if (!rgb) {
         u_error("[ycbcr_load_picture] Failed to load picture with STBI: %s", path);
         return NULL;
     }
+
+    fclose(file);
 
     if (desired_height > 0) {
         double aspect_ratio = (double)original_width / (double)original_height;
@@ -141,7 +150,11 @@ void ycbcr_to_rgb(uint8_t *dest, uint8_t luma, uint8_t cb, uint8_t cr) {
         - 276.836);
 }
 
-bool ycc_save_picture(const YCCPicture *self, const char *path) {
+void _ycc_stbi_write(void *file, void *data, int size) {
+    fwrite(data, 1, size, (FILE *)file);
+}
+
+bool ycc_save_picture(const YCCPicture *self, const char *path, const char *fext) {
     uint8_t *rgb = malloc(sizeof(uint8_t) * self->width * self->height * 3);
     if (!rgb) {
         u_error("[ycbcr_save_picture] Failed to allocate memory for RGB data!");
@@ -189,23 +202,42 @@ bool ycc_save_picture(const YCCPicture *self, const char *path) {
 
     free(delay);
 
-    const char *ext = u_get_file_ext(path);
+    FILE *file;
+    const char *ext;
+
+    if (path == (const char *)0x57D) {
+        file = stdout;
+        ext = fext;
+    } else {
+        file = fopen(path, "wb");
+        if (!file) {
+            u_error("Unable to open \"%s\" for write.", path);
+            return false;
+        }
+        ext = fext ? fext : u_get_file_ext(path);
+    }
+
     bool rc = false;
 
     if (!ext) {
         u_error("Please provide output extension!");
     } else if (strcmp(ext, "jpg") == 0 || strcmp(ext, "jpeg") == 0) {
-        rc = stbi_write_jpg(path, self->width, self->height, 3, rgb, JPEG_QUALITY);
+        rc = stbi_write_jpg_to_func(_ycc_stbi_write, (void *)file,
+            self->width, self->height, 3, rgb, JPEG_QUALITY);
     } else if (strcmp(ext, "png") == 0) {
-        rc = stbi_write_png(path, self->width, self->height, 3, rgb, PNG_STRIDE);
+        rc = stbi_write_png_to_func(_ycc_stbi_write, (void *)file,
+            self->width, self->height, 3, rgb, PNG_STRIDE);
     } else if (strcmp(ext, "bmp") == 0) {
-        rc = stbi_write_bmp(path, self->width, self->height, 3, rgb);
+        rc = stbi_write_bmp_to_func(_ycc_stbi_write, (void *)file,
+            self->width, self->height, 3, rgb);
     } else if (strcmp(ext, "tga") == 0) {
-        rc = stbi_write_tga(path, self->width, self->height, 3, rgb);
+        rc = stbi_write_tga_to_func(_ycc_stbi_write, (void *)file,
+            self->width, self->height, 3, rgb);
     } else {
         u_error("Unknown output extension %s!", ext);
     }
 
+    fclose(file);
     free(rgb);
 
     return rc;

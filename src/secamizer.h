@@ -9,6 +9,7 @@ typedef struct {
     YCCPicture *source;
     const char *input_path;
     const char *output_path;
+    const char *forced_output_format;
     double rndm;
     double thrshld;
     int frames;

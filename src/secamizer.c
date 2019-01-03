@@ -57,10 +57,17 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
             case 'R':
                 self->force_480 = true;
                 break;
+            case 'I':
+                self->input_path = (const char *)0x57D;
+                break;
+            case 'O':
+                self->output_path = (const char *)0x57D;
+                break;
             case 'r':
             case 't':
             case 'a':
             case 'p':
+            case 'f':
                 catch_option = argv[i][1];
                 continue;
             case 'h':
@@ -83,6 +90,9 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
                 break;
             case 'p':
                 sscanf(argv[i], "%d", &self->pass_count);
+                break;
+            case 'f':
+                self->forced_output_format = argv[i];
                 break;
             }
             catch_option = 0;
@@ -116,6 +126,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
     self->frames = 1;
     self->pass_count = 1;
     self->force_480 = false;
+    self->forced_output_format = NULL;
 
     self->input_path = NULL;
     self->output_path = NULL;
@@ -160,9 +171,9 @@ void secamizer_run(Secamizer *self) {
 
             u_get_file_base(output_base_name, self->output_path);
             sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
-            ycc_save_picture(frame, output_full_name);
+            ycc_save_picture(frame, output_full_name, self->forced_output_format);
         } else {
-            ycc_save_picture(frame, self->output_path);
+            ycc_save_picture(frame, self->output_path, self->forced_output_format);
         }
         
         ycc_delete(&frame);
