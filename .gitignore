@@ -4,4 +4,7 @@
 *_arena
 runtime
 
+tests/pictures/*
+tests/secamized/*
+
 .vscode/settings.json
