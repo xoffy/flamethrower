@@ -18,15 +18,19 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy);
 
 void usage(const char *appname) {
     printf(
-        "usage: %s [OPTIONS] <SOURCE> <OUTPUT>\n"
+        "usage: %s [OPTIONS] <SOURCE or -I> <OUTPUT or -O>\n"
         "\n"
         "Available options:\n"
         "\n"
         "    -r <VALUE>      set randomization factor, default is %g\n"
         "    -t <VALUE>      set threshold value, default is %g\n"
         "    -a <COUNT>      set count of frames\n"
+        "    -f <FORMAT>     force output format (mandatory for stdout)\n"
+        "                    supported formats: jpg, png, bmp, tga\n"
         "    -q              be quiet, do not print anything\n"
         "    -R              force 480p\n"
+        "    -I              read from stdin\n"
+        "    -O              write to stdout\n"
         "    -? -h           show this help\n"
         "\n"
         "A source can be in JPG or PNG formats. An output is same too.\n",
