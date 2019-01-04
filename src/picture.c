@@ -12,7 +12,7 @@
 #include "picture.h"
 #include "util.h"
 
-#define JPEG_QUALITY    95
+#define JPEG_QUALITY    0
 #define PNG_STRIDE      0
 
 YCCPicture *ycc_new(int width, int height) {
