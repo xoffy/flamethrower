@@ -6,5 +6,6 @@ runtime
 
 tests/pictures/*
 tests/secamized/*
+tests/experiments/*
 
 .vscode/settings.json
