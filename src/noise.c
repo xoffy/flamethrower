@@ -32,3 +32,17 @@ double noise(double x) {
     return y * noise_amplitude;
 }
 
+double noise2(double x, double amplitude, double scale) {
+    double xs, t, ts, y;
+    int xf, xmin, xmax;
+    
+    xs = x * scale;
+    xf = floor(xs);
+    t = xs - xf;
+    ts = t * t * (3 - 2 * t);
+    xmin = xf & MAX_VERTICES_MASK;
+    xmax = (xmin + 1) & MAX_VERTICES_MASK;
+    y = LERP(rnd[xmin], rnd[xmax], ts);
+    
+    return y * amplitude;
+}
