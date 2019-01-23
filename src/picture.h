@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #define COLOR_CLAMP(x) ((x) < 0 ? 0 : ((x) > 255 ? 255 : (x)))
+#define LUMA_CLAMP(x) ((x) < 16 ? 16 : ((x) > 248 ? 248 : (x)))
 
 typedef struct {
     uint8_t     *luma; // width * height
