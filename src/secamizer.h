@@ -15,6 +15,7 @@ typedef struct {
     int frames;
     int pass_count;
     bool force_480;
+    double noise_amplitude;
 } Secamizer;
 
 Secamizer *secamizer_init(int argc, char **argv);

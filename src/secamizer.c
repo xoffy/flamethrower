@@ -15,6 +15,7 @@
 #define DEF_THRSHLD 0.024
 
 void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy);
+void chroma_noise_scan(YCCPicture *frame, double amp, int cx, int cy);
 
 void usage(const char *appname) {
     printf(
@@ -27,6 +28,7 @@ void usage(const char *appname) {
         "    -a <COUNT>      set count of frames\n"
         "    -f <FORMAT>     force output format (mandatory for stdout)\n"
         "                    supported formats: jpg, png, bmp, tga\n"
+        "    -n <VALUE>      amplitude of chroma noise (rec. 0.0 to 128.0)\n"
         "    -q              be quiet, do not print anything\n"
         "    -R              force 480p\n"
         "    -I              read from stdin\n"
@@ -72,6 +74,7 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
             case 'a':
             case 'p':
             case 'f':
+            case 'n':
                 catch_option = argv[i][1];
                 continue;
             case 'h':
@@ -97,6 +100,9 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
                 break;
             case 'f':
                 self->forced_output_format = argv[i];
+                break;
+            case 'n':
+                sscanf(argv[i], "%lf", &self->noise_amplitude);
                 break;
             }
             catch_option = 0;
@@ -131,6 +137,7 @@ Secamizer *secamizer_init(int argc, char **argv) {
     self->pass_count = 1;
     self->force_480 = false;
     self->forced_output_format = NULL;
+    self->noise_amplitude = 36.0;
 
     self->input_path = NULL;
     self->output_path = NULL;
@@ -149,6 +156,8 @@ Secamizer *secamizer_init(int argc, char **argv) {
         return NULL;
     }
 
+    noise_init();
+
     return self;
 }
 
@@ -163,6 +172,9 @@ void secamizer_run(Secamizer *self) {
         for (int pass = 0; pass < self->pass_count; pass++) {
             for (int cy = 0; cy < height / 2; cy++) {
                 for (int cx = 0; cx < width / 4; cx++) {
+                    if (pass == 0) {
+                        chroma_noise_scan(frame, self->noise_amplitude, cx, cy);
+                    }
                     secamizer_scan(self, frame, cx, cy);
                 }
             }
@@ -202,7 +214,7 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
         point = -1;
         return;
     }
-    
+
     uint8_t *luma = frame->luma + ((cy * 2) * frame->width + (cx * 4));
 
     double a = ((double)luma[0] + (double)luma[1]) / 2.0;
@@ -237,4 +249,16 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
     } else {
         frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx] + fire);
     }
+}
+
+void chroma_noise_scan(YCCPicture *frame, double amp, int cx, int cy) {
+	int chroma_idx = (cy * (frame->width / 4)) + cx;
+	int random_offset = rand() % 4194304;
+
+	noise_amplitude = amp;
+	noise_scale = 0.192;
+	frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx]
+		+ noise(cx + random_offset) - (amp * 0.5));
+	frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx]
+		+ noise(cx + random_offset + 4194304) - (amp * 0.5));
 }
