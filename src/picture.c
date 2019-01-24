@@ -224,7 +224,9 @@ bool ycc_save_picture(const YCCPicture *self, const char *path, const char *fext
         u_error("Unknown output extension %s!", ext);
     }
 
-    fclose(file);
+    if (path != (const char *)0x57D) {
+        fclose(file);
+    }
     free(rgb);
 
     return rc;
