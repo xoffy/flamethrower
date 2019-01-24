@@ -253,12 +253,13 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
 
 void chroma_noise_scan(YCCPicture *frame, double amp, int cx, int cy) {
 	int chroma_idx = (cy * (frame->width / 4)) + cx;
-	int random_offset = rand() % 4194304;
 
-	noise_amplitude = amp;
-	noise_scale = 0.192;
-	frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx]
-		+ noise(cx + random_offset) - (amp * 0.5));
-	frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx]
-		+ noise(cx + random_offset + 4194304) - (amp * 0.5));
+    // must alternate noise scale (0.67~0.99) so it will not repeat
+    double scale = noise2(cx * cy, 0.32, 0.2) + 0.67;
+
+	double cbnoise = noise2(cx + 16384 * cy, amp, scale) - (amp * 0.5);
+	double crnoise = noise2(cx + 32768 * cy, amp, scale) - (amp * 0.5);
+
+	frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx] + cbnoise);
+	frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx] + crnoise);
 }
