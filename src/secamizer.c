@@ -180,18 +180,18 @@ void secamizer_run(Secamizer *self) {
             }
         }
 
-        if (self->frames > 1) {
+        if (self->frames <= 1 || self->output_path == (const char *)0x57D) {
+            ycc_save_picture(frame, self->output_path, self->forced_output_format);
+        } else {
             char output_base_name[256];
             char output_full_name[1024];
-            const char *ext = u_get_file_ext(self->output_path);
 
+            const char *ext = u_get_file_ext(self->output_path);
             u_get_file_base(output_base_name, self->output_path);
             sprintf(output_full_name, "%s-%d.%s", output_base_name, i, ext);
             ycc_save_picture(frame, output_full_name, self->forced_output_format);
-        } else {
-            ycc_save_picture(frame, self->output_path, self->forced_output_format);
         }
-        
+    
         ycc_delete(&frame);
     }
 }
