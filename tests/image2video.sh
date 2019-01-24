@@ -20,4 +20,4 @@ $EXECUTABLE -R -f jpg -a $(($LENGTH * 25)) $INPUT -O \
   | ffmpeg \
   -f image2pipe -r 25 -c:v mjpeg -i - \
   -f lavfi -i "sine=frequency=1000:duration=$LENGTH" \
-  -c:v libx264 -pix_fmt yuv420p -c:a aac ./image2video/$OUTPUT.mp4
+  -c:v libx264 -pix_fmt yuv420p -c:a aac ./experiments/videos/$OUTPUT.mp4
