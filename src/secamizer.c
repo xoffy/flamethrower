@@ -15,7 +15,7 @@
 #define DEF_THRSHLD 0.024
 
 void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy);
-void chroma_noise_scan(YCCPicture *frame, double amp, int cx, int cy);
+void chroma_noise_scan(YCCPicture *frame, double shift, double amp, int cx, int cy);
 
 void usage(const char *appname) {
     printf(
@@ -173,7 +173,7 @@ void secamizer_run(Secamizer *self) {
             for (int cy = 0; cy < height / 2; cy++) {
                 for (int cx = 0; cx < width / 4; cx++) {
                     if (pass == 0) {
-                        chroma_noise_scan(frame, self->noise_amplitude, cx, cy);
+                        chroma_noise_scan(frame, i * 16.0, self->noise_amplitude, cx, cy);
                     }
                     secamizer_scan(self, frame, cx, cy);
                 }
@@ -251,14 +251,14 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
     }
 }
 
-void chroma_noise_scan(YCCPicture *frame, double amp, int cx, int cy) {
+void chroma_noise_scan(YCCPicture *frame, double shift, double amp, int cx, int cy) {
 	int chroma_idx = (cy * (frame->width / 4)) + cx;
 
     // must alternate noise scale (0.67~0.99) so it will not repeat
     double scale = noise2(cx * cy, 0.32, 0.2) + 0.67;
 
-	double cbnoise = noise2(cx + 16384 * cy, amp, scale) - (amp * 0.5);
-	double crnoise = noise2(cx + 32768 * cy, amp, scale) - (amp * 0.5);
+	double cbnoise = noise2(cx + 16384 * cy + shift, amp, scale) - (amp * 0.5);
+	double crnoise = noise2(cx + 32768 * cy + shift, amp, scale) - (amp * 0.5);
 
 	frame->cb[chroma_idx] = COLOR_CLAMP(frame->cb[chroma_idx] + cbnoise);
 	frame->cr[chroma_idx] = COLOR_CLAMP(frame->cr[chroma_idx] + crnoise);
