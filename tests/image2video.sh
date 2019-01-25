@@ -16,7 +16,7 @@ LENGTH=${2:-10}
 [ -d "./experiments/videos" ] || mkdir -p "./experiments/videos"
 [ -f "./experiments/videos/$OUTPUT.mp4" ] && rm -f "./experiments/videos/$OUTPUT.mp4"
 
-$EXECUTABLE -R -f jpg -a $(($LENGTH * 25)) $INPUT -O \
+$EXECUTABLE -R -f jpg -a $(($LENGTH * 25)) $INPUT - \
   | ffmpeg \
   -f image2pipe -r 25 -c:v mjpeg -i - \
   -f lavfi -i "sine=frequency=1000:duration=$LENGTH" \
