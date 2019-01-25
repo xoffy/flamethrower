@@ -269,6 +269,10 @@ void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
 }
 
 void chroma_noise_scan(YCCPicture *frame, double shift, double amp, int cx, int cy) {
+    // Using noise function here looks too redundant.
+    // Simple random value would be enough and much faster.
+    // ...or wouldn't?
+
 	int chroma_idx = (cy * (frame->width / 4)) + cx;
 
     // must alternate noise scale (0.67~0.99) so it will not repeat
