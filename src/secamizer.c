@@ -224,6 +224,11 @@ void secamizer_destroy(Secamizer **selfp) {
 #define MIN_HS  12  /* minimal horizontal step */
 
 void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy) {
+    // This guy should be rewritten completely.
+    // I have to figure out how to do this thing in more
+    // mathy and "analog-like" way (using noise or something like that).
+    // The current discrete method is ugly.
+
     static int point;
     static bool is_blue;
 
