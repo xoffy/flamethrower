@@ -11,7 +11,7 @@ fi
 
 for i in ./pictures/*; do
   echo "-- $i..."
-  $SECAMIZER $* $i "./secamized/$(basename $i)"
+  $SECAMIZER $* $i "./secamized/$(basename $i)" || exit 1
 done
 
 echo "-- Done!"
