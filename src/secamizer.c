@@ -17,7 +17,7 @@
 void secamizer_scan(Secamizer *self, YCCPicture *frame, int cx, int cy);
 void chroma_noise_scan(YCCPicture *frame, double shift, double amp, int cx, int cy);
 
-void usage(const char *appname) {
+void print_usage(const char *appname) {
     printf(
     //   handy ruler
     //   ------------------------------------------------------------------------------
@@ -43,7 +43,6 @@ void usage(const char *appname) {
         "You can set source, output or both to `-` (stdin and stdout respectively).\n",
         appname, DEF_RNDM, DEF_THRSHLD
     );
-    exit(0);
 }
 
 enum Option {
@@ -97,7 +96,8 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
             self->force_480 = true;
             continue;
         } else if (strcmp(arg, "?") == 0 || strcmp(arg, "h") == 0 || strcmp(arg, "-help") == 0) {
-            usage(argv[0]);
+            print_usage(argv[0]);
+            exit(0);
             continue;
         } else if (strcmp(arg, "r") == 0 || strcmp(arg, "-random") == 0) {
             catch_option = OPTION_RANDOMIZATION_FACTOR;
@@ -118,8 +118,10 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
             catch_option = OPTION_NOISE_AMPLITUDE;
             continue;
         } else if (argv[i][0] == '-' && strlen(arg) > 0) {
+            print_usage(argv[0]);
             u_error("Bad argument: \"%s\"", argv[i]);
-            usage(argv[0]);
+            secamizer_destroy(&self);
+            exit(1);
         }
 
         if (!self->input_path) {
@@ -127,8 +129,10 @@ void parse_arguments(Secamizer *self, int argc, char **argv) {
         } else if (!self->output_path) {
             self->output_path = argv[i];
         } else {
+            print_usage(argv[0]);
             u_error("Can't recognize argument \"%s\"", argv[i]);
-            usage(argv[0]);
+            secamizer_destroy(&self);
+            exit(1);
         }
     }
 }
@@ -156,8 +160,10 @@ Secamizer *secamizer_init(int argc, char **argv) {
     parse_arguments(self, argc, argv);
 
     if (!self->input_path || !self->output_path) {
+        print_usage(argv[0]);
+        u_error("You must set input and output!");
         secamizer_destroy(&self);
-        usage(argv[0]);
+        exit(1);
     }
 
     self->source = ycc_load_picture(self->input_path,
