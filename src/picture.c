@@ -55,7 +55,7 @@ void ycc_reset(YCCPicture *self) {
 
 YCCPicture *ycc_load_picture(const char *path, int desired_height) {
     FILE *file;
-    file = (path == (const char *)0x57D) ? stdin : fopen(path, "rb");
+    file = (strcmp(path, "-") == 0) ? stdin : fopen(path, "rb");
     if (!file) {
         u_error("File \"%s\" doesn't exist.", path);
         return NULL;
@@ -192,7 +192,7 @@ bool ycc_save_picture(const YCCPicture *self, const char *path, const char *fext
     FILE *file;
     const char *ext;
 
-    if (path == (const char *)0x57D) {
+    if (strcmp(path, "-") == 0) {
         file = stdout;
         ext = fext;
     } else {
@@ -224,7 +224,7 @@ bool ycc_save_picture(const YCCPicture *self, const char *path, const char *fext
         u_error("Unknown output extension %s!", ext);
     }
 
-    if (path != (const char *)0x57D) {
+    if (file != stdout) {
         fclose(file);
     }
     free(rgb);

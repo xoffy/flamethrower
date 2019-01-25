@@ -19,105 +19,116 @@ void chroma_noise_scan(YCCPicture *frame, double shift, double amp, int cx, int 
 
 void usage(const char *appname) {
     printf(
-        "usage: %s [OPTIONS] <SOURCE or -I> <OUTPUT or -O>\n"
+    //   handy ruler
+    //   ------------------------------------------------------------------------------
+        "usage: %s [OPTIONS] <SOURCE> <OUTPUT>\n"
         "\n"
         "Available options:\n"
         "\n"
-        "    -r <VALUE>      set randomization factor, default is %g\n"
-        "    -t <VALUE>      set threshold value, default is %g\n"
-        "    -a <COUNT>      set count of frames\n"
-        "    -f <FORMAT>     force output format (mandatory for stdout)\n"
-        "                    supported formats: jpg, png, bmp, tga\n"
-        "    -n <VALUE>      amplitude of chroma noise (rec. 0.0 to 128.0)\n"
-        "    -q              be quiet, do not print anything\n"
-        "    -R              force 480p\n"
-        "    -I              read from stdin\n"
-        "    -O              write to stdout\n"
-        "    -? -h           show this help\n"
+        " -r, --random <VALUE>         set randomization factor\n"
+        "                                (default is %g)\n"
+        " -t, --threshold <VALUE>      set threshold value\n"
+        "                                (default is %g)\n"
+        " -a, --frames <COUNT>         set count of frames\n"
+        " -p, --passes <COUNT>         how many times to apply secamization\n"
+        " -f, --output-format <FMT>    force output format (mandatory for stdout)\n"
+        "                                supported formats: jpg, png, bmp, tga\n"
+        " -n, --noise-amplitude <VAL>  amplitude of chroma noise (rec. 0.0 to 128.0)\n"
         "\n"
-        "A source can be in JPG or PNG formats. An output is same too.\n",
+        " -q, --quiet                  be quiet, do not print anything\n"
+        " -R, --force-480              force 480p\n"
+        " -h, -?                       show this help\n"
+        "\n"
+        "A source can be in JPG or PNG formats. An output is same too.\n"
+        "You can set source, output or both to `-` (stdin and stdout respectively).\n",
         appname, DEF_RNDM, DEF_THRSHLD
     );
     exit(0);
 }
 
+enum Option {
+    OPTION_NONE = 0,
+    OPTION_RANDOMIZATION_FACTOR,
+    OPTION_THRESHOLD,
+    OPTION_FRAME_COUNT,
+    OPTION_PASS_COUNT,
+    OPTION_FORCE_FORMAT,
+    OPTION_NOISE_AMPLITUDE
+};
+
 void parse_arguments(Secamizer *self, int argc, char **argv) {
-    char catch_option = 0;
+    enum Option catch_option = OPTION_NONE;
 
     for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-') {
-            if (catch_option) {
-                u_error("Expected argument for option \"%c\".", catch_option);
-                usage(argv[0]);
-            }
-
-            if (argv[i][2] != '\0') {
-                u_error("Bad argument \"%s\"!", argv[i] + 1);
-                usage(argv[0]);
-            }
-
-            switch (argv[i][1]) {
-            case 'q':
-                u_quiet = 1;
-                break;
-            case 'R':
-                self->force_480 = true;
-                break;
-            case 'I':
-                self->input_path = (const char *)0x57D;
-                break;
-            case 'O':
-                self->output_path = (const char *)0x57D;
-                break;
-            case 'r':
-            case 't':
-            case 'a':
-            case 'p':
-            case 'f':
-            case 'n':
-                catch_option = argv[i][1];
-                continue;
-            case 'h':
-            case '?':
-                usage(argv[0]);
-            default:
-                u_error("Unknown option \"%c\".", argv[i][1]);
-                usage(argv[0]);
-            }
-        } else if (catch_option) {
+        if (catch_option) {
             switch (catch_option) {
-            case 'r':
+            case OPTION_NONE:
+                // for GCC's sake [sry for bad code]
+                break;
+            case OPTION_RANDOMIZATION_FACTOR:
                 sscanf(argv[i], "%lf", &self->rndm);
                 break;
-            case 't':
+            case OPTION_THRESHOLD:
                 sscanf(argv[i], "%lf", &self->thrshld);
                 break;
-            case 'a':
+            case OPTION_FRAME_COUNT:
                 sscanf(argv[i], "%d", &self->frames);
                 break;
-            case 'p':
+            case OPTION_PASS_COUNT:
                 sscanf(argv[i], "%d", &self->pass_count);
                 break;
-            case 'f':
+            case OPTION_FORCE_FORMAT:
                 self->forced_output_format = argv[i];
                 break;
-            case 'n':
+            case OPTION_NOISE_AMPLITUDE:
                 sscanf(argv[i], "%lf", &self->noise_amplitude);
                 break;
             }
-            catch_option = 0;
+            catch_option = OPTION_NONE;
             continue;
+        }
+
+        const char *arg = &argv[i][1];
+
+        if (strcmp(arg, "q") == 0 || strcmp(arg, "-quiet") == 0) {
+            u_quiet = 1;
+            continue;
+        } else if (strcmp(arg, "R") == 0 || strcmp(arg, "-force-480") == 0) {
+            self->force_480 = true;
+            continue;
+        } else if (strcmp(arg, "?") == 0 || strcmp(arg, "h") == 0 || strcmp(arg, "-help") == 0) {
+            usage(argv[0]);
+            continue;
+        } else if (strcmp(arg, "r") == 0 || strcmp(arg, "-random") == 0) {
+            catch_option = OPTION_RANDOMIZATION_FACTOR;
+            continue;
+        } else if (strcmp(arg, "t") == 0 || strcmp(arg, "-threshold") == 0) {
+            catch_option = OPTION_THRESHOLD;
+            continue;
+        } else if (strcmp(arg, "a") == 0 || strcmp(arg, "-frames") == 0) {
+            catch_option = OPTION_FRAME_COUNT;
+            continue;
+        } else if (strcmp(arg, "p") == 0 || strcmp(arg, "-passes") == 0) {
+            catch_option = OPTION_PASS_COUNT;
+            continue;
+        } else if (strcmp(arg, "f") == 0 || strcmp(arg, "-output-format") == 0) {
+            catch_option = OPTION_FORCE_FORMAT;
+            continue;
+        } else if (strcmp(arg, "n") == 0 || strcmp(arg, "-noise-amplitude") == 0) {
+            catch_option = OPTION_NOISE_AMPLITUDE;
+            continue;
+        } else if (argv[i][0] == '-' && strlen(arg) > 0) {
+            u_error("Bad argument: \"%s\"", argv[i]);
+            usage(argv[0]);
+        }
+
+        if (!self->input_path) {
+            self->input_path = argv[i];
+        } else if (!self->output_path) {
+            self->output_path = argv[i];
         } else {
-            // arguments without hyphen are treated as
-            // input and output paths respectively
-            if (!self->input_path) {
-                self->input_path = argv[i];
-            } else if (!self->output_path) {
-                self->output_path = argv[i];
-            } else {
-                u_error("Can't recognize argument \"%s\"", argv[i]);
-                usage(argv[0]);
-            }
+            u_error("Can't recognize argument \"%s\"", argv[i]);
+            usage(argv[0]);
         }
     }
 }
@@ -180,7 +191,7 @@ void secamizer_run(Secamizer *self) {
             }
         }
 
-        if (self->frames <= 1 || self->output_path == (const char *)0x57D) {
+        if (self->frames <= 1 || strcmp(self->output_path, "-") == 0) {
             ycc_save_picture(frame, self->output_path, self->forced_output_format);
         } else {
             char output_base_name[256];
